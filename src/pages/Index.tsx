@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import mapboxgl from 'mapbox-gl';
 import AfricaMap from '@/components/map/AfricaMap';
 import ThreatBar from '@/components/header/ThreatBar';
@@ -6,101 +6,7 @@ import CommandSidebar from '@/components/sidebar/CommandSidebar';
 import StormDetailPanel from '@/components/panels/StormDetailPanel';
 import TimeControls from '@/components/controls/TimeControls';
 import { REGIONAL_HUBS, getProbabilityColor, type Hotspot } from '@/types/cyclone';
-
-// Demo data - these will be replaced with real data from Supabase
-const DEMO_STORMS = [
-  { id: '1', track_id: 'IO192026', storm_name: 'Cyclone Alpha', basin: 'IO' },
-  { id: '2', track_id: 'SH982026', basin: 'SH' },
-  { id: '3', track_id: 'SH992026', basin: 'SH' },
-];
-
-const DEMO_HOTSPOTS: Hotspot[] = [
-  {
-    id: '1',
-    forecast_id: 'f1',
-    track_id: '1',
-    disaster_type: 'cyclone',
-    latitude: -15.5,
-    longitude: 55.2,
-    lead_time_hours: 0,
-    hurricane_prob: 0.85,
-    track_prob: 0.92,
-    wind_speed_kt: 95,
-    wind_speed_ms: 48.9,
-    pressure_hpa: 965,
-    radius_r8_km: 280,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    forecast_id: 'f1',
-    track_id: '1',
-    disaster_type: 'cyclone',
-    latitude: -17.2,
-    longitude: 52.8,
-    lead_time_hours: 24,
-    hurricane_prob: 0.78,
-    track_prob: 0.88,
-    wind_speed_kt: 105,
-    wind_speed_ms: 54.0,
-    pressure_hpa: 955,
-    radius_r8_km: 320,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: '3',
-    forecast_id: 'f1',
-    track_id: '1',
-    disaster_type: 'cyclone',
-    latitude: -19.8,
-    longitude: 48.5,
-    lead_time_hours: 48,
-    hurricane_prob: 0.65,
-    track_prob: 0.82,
-    wind_speed_kt: 85,
-    wind_speed_ms: 43.7,
-    pressure_hpa: 975,
-    radius_r8_km: 250,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: '4',
-    forecast_id: 'f1',
-    track_id: '2',
-    disaster_type: 'cyclone',
-    latitude: -22.5,
-    longitude: 42.0,
-    lead_time_hours: 0,
-    hurricane_prob: 0.45,
-    track_prob: 0.72,
-    wind_speed_kt: 55,
-    wind_speed_ms: 28.3,
-    pressure_hpa: 995,
-    radius_r8_km: 180,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: '5',
-    forecast_id: 'f1',
-    track_id: '3',
-    disaster_type: 'cyclone',
-    latitude: -28.0,
-    longitude: 35.5,
-    lead_time_hours: 0,
-    hurricane_prob: 0.25,
-    track_prob: 0.55,
-    wind_speed_kt: 35,
-    wind_speed_ms: 18.0,
-    pressure_hpa: 1005,
-    radius_r8_km: 120,
-    created_at: new Date().toISOString(),
-  },
-];
-
-const DEMO_THREATS = [
-  { region: 'IO', level: 'severe' as const, activeEvents: 1 },
-  { region: 'SADC', level: 'moderate' as const, activeEvents: 2 },
-];
+import { useCycloneTracks, useHotspots, useForecasts } from '@/hooks/useForecastData';
 
 const Index = () => {
   const [map, setMap] = useState<mapboxgl.Map | null>(null);
@@ -110,6 +16,59 @@ const Index = () => {
   const [currentLeadTime, setCurrentLeadTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
+
+  // Fetch real data from API
+  const { data: tracksData, isLoading: tracksLoading } = useCycloneTracks();
+  const { data: hotspotsData, isLoading: hotspotsLoading } = useHotspots({ limit: 500 });
+  const { data: forecastsData } = useForecasts({ limit: 1 });
+
+  // Transform tracks data for sidebar
+  const storms = useMemo(() => {
+    if (!tracksData) return [];
+    return tracksData.map(track => ({
+      id: track.id,
+      track_id: track.track_id,
+      storm_name: track.storm_name,
+      basin: track.basin,
+    }));
+  }, [tracksData]);
+
+  // Get hotspots for selected storm
+  const selectedStormHotspots = useMemo(() => {
+    if (!hotspotsData || !selectedStormId) return [];
+    return hotspotsData
+      .filter(h => h.track_id === selectedStormId)
+      .map(h => ({
+        ...h,
+        disaster_type: h.disaster_type as Hotspot['disaster_type'],
+      }));
+  }, [hotspotsData, selectedStormId]);
+
+  // Calculate threat levels from hotspots
+  const threats = useMemo(() => {
+    if (!hotspotsData) return [];
+    
+    const regionThreats: Record<string, { maxProb: number; count: number }> = {};
+    
+    hotspotsData.forEach(hotspot => {
+      const basin = hotspot.cyclone_tracks?.basin;
+      if (basin) {
+        if (!regionThreats[basin]) {
+          regionThreats[basin] = { maxProb: 0, count: 0 };
+        }
+        regionThreats[basin].maxProb = Math.max(regionThreats[basin].maxProb, hotspot.hurricane_prob || 0);
+        regionThreats[basin].count++;
+      }
+    });
+
+    return Object.entries(regionThreats).map(([region, data]) => ({
+      region,
+      level: data.maxProb >= 0.8 ? 'severe' as const :
+             data.maxProb >= 0.6 ? 'high' as const :
+             data.maxProb >= 0.4 ? 'moderate' as const : 'low' as const,
+      activeEvents: data.count,
+    }));
+  }, [hotspotsData]);
 
   // Update time every second
   useEffect(() => {
@@ -134,60 +93,72 @@ const Index = () => {
     return () => clearInterval(interval);
   }, [isPlaying, playbackSpeed]);
 
+  // Update map when hotspots data changes
+  useEffect(() => {
+    if (!map || !hotspotsData) return;
+
+    const hotspotsSource = map.getSource('hotspots') as mapboxgl.GeoJSONSource;
+    const tracksSource = map.getSource('tracks') as mapboxgl.GeoJSONSource;
+
+    if (hotspotsSource) {
+      const hotspotsGeoJSON: GeoJSON.FeatureCollection = {
+        type: 'FeatureCollection',
+        features: hotspotsData
+          .filter(h => h.lead_time_hours === currentLeadTime || currentLeadTime === 0)
+          .map((hotspot) => ({
+            type: 'Feature',
+            properties: {
+              id: hotspot.id,
+              track_id: hotspot.track_id,
+              hurricane_prob: hotspot.hurricane_prob,
+              track_prob: hotspot.track_prob,
+              color: getProbabilityColor(hotspot.hurricane_prob || 0),
+            },
+            geometry: {
+              type: 'Point',
+              coordinates: [hotspot.longitude, hotspot.latitude],
+            },
+          })),
+      };
+      hotspotsSource.setData(hotspotsGeoJSON);
+    }
+
+    if (tracksSource && tracksData) {
+      // Group hotspots by track to create lines
+      const trackLines: Record<string, [number, number][]> = {};
+      hotspotsData.forEach(h => {
+        if (h.track_id) {
+          if (!trackLines[h.track_id]) trackLines[h.track_id] = [];
+          trackLines[h.track_id].push([h.longitude, h.latitude]);
+        }
+      });
+
+      const tracksGeoJSON: GeoJSON.FeatureCollection = {
+        type: 'FeatureCollection',
+        features: Object.entries(trackLines)
+          .filter(([_, coords]) => coords.length > 1)
+          .map(([trackId, coords]) => {
+            const trackHotspot = hotspotsData.find(h => h.track_id === trackId);
+            return {
+              type: 'Feature',
+              properties: {
+                track_id: trackId,
+                color: getProbabilityColor(trackHotspot?.hurricane_prob || 0),
+              },
+              geometry: {
+                type: 'LineString',
+                coordinates: coords,
+              },
+            };
+          }),
+      };
+      tracksSource.setData(tracksGeoJSON);
+    }
+  }, [map, hotspotsData, tracksData, currentLeadTime]);
+
   // Handle map load
   const handleMapLoad = useCallback((mapInstance: mapboxgl.Map) => {
     setMap(mapInstance);
-
-    // Add demo hotspots to the map
-    const hotspotsGeoJSON: GeoJSON.FeatureCollection = {
-      type: 'FeatureCollection',
-      features: DEMO_HOTSPOTS.filter(h => h.lead_time_hours === 0).map((hotspot) => ({
-        type: 'Feature',
-        properties: {
-          id: hotspot.id,
-          track_id: hotspot.track_id,
-          hurricane_prob: hotspot.hurricane_prob,
-          track_prob: hotspot.track_prob,
-          color: getProbabilityColor(hotspot.hurricane_prob || 0),
-        },
-        geometry: {
-          type: 'Point',
-          coordinates: [hotspot.longitude, hotspot.latitude],
-        },
-      })),
-    };
-
-    // Add track lines
-    const tracksGeoJSON: GeoJSON.FeatureCollection = {
-      type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature',
-          properties: {
-            track_id: 'IO192026',
-            color: getProbabilityColor(0.85),
-          },
-          geometry: {
-            type: 'LineString',
-            coordinates: [
-              [55.2, -15.5],
-              [52.8, -17.2],
-              [48.5, -19.8],
-            ],
-          },
-        },
-      ],
-    };
-
-    const hotspotsSource = mapInstance.getSource('hotspots') as mapboxgl.GeoJSONSource;
-    const tracksSource = mapInstance.getSource('tracks') as mapboxgl.GeoJSONSource;
-    
-    if (hotspotsSource) {
-      hotspotsSource.setData(hotspotsGeoJSON);
-    }
-    if (tracksSource) {
-      tracksSource.setData(tracksGeoJSON);
-    }
   }, []);
 
   // Handle storm selection
@@ -195,18 +166,18 @@ const Index = () => {
     setSelectedStormId(stormId);
     setIsDetailPanelOpen(true);
 
-    // Zoom to storm location
-    const storm = DEMO_STORMS.find(s => s.id === stormId);
-    const hotspot = DEMO_HOTSPOTS.find(h => h.track_id === stormId);
-    
-    if (map && hotspot) {
-      map.flyTo({
-        center: [hotspot.longitude, hotspot.latitude],
-        zoom: 5,
-        duration: 1500,
-      });
+    // Find hotspot for this storm and zoom to it
+    if (map && hotspotsData) {
+      const hotspot = hotspotsData.find(h => h.track_id === stormId);
+      if (hotspot) {
+        map.flyTo({
+          center: [hotspot.longitude, hotspot.latitude],
+          zoom: 5,
+          duration: 1500,
+        });
+      }
     }
-  }, [map]);
+  }, [map, hotspotsData]);
 
   // Handle region click
   const handleRegionClick = useCallback((regionCode: string) => {
@@ -221,18 +192,26 @@ const Index = () => {
   }, [map]);
 
   // Get selected storm details
-  const selectedStorm = selectedStormId 
-    ? {
-        ...DEMO_STORMS.find(s => s.id === selectedStormId),
-        hotspots: DEMO_HOTSPOTS.filter(h => h.track_id === selectedStormId),
-      }
-    : undefined;
+  const selectedStorm = useMemo(() => {
+    if (!selectedStormId || !tracksData) return undefined;
+    const track = tracksData.find(t => t.id === selectedStormId);
+    if (!track) return undefined;
+    
+    return {
+      track_id: track.track_id,
+      storm_name: track.storm_name,
+      basin: track.basin,
+      hotspots: selectedStormHotspots,
+    };
+  }, [selectedStormId, tracksData, selectedStormHotspots]);
+
+  const isLoading = tracksLoading || hotspotsLoading;
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-background">
       {/* Threat Bar - Top Header */}
       <ThreatBar
-        threats={DEMO_THREATS}
+        threats={threats}
         currentTime={currentTime}
         onRegionClick={handleRegionClick}
       />
@@ -242,16 +221,28 @@ const Index = () => {
         <AfricaMap
           onMapLoad={handleMapLoad}
           onHotspotClick={(id) => {
-            const hotspot = DEMO_HOTSPOTS.find(h => h.id === id);
-            if (hotspot?.track_id) {
-              handleStormSelect(hotspot.track_id);
+            if (hotspotsData) {
+              const hotspot = hotspotsData.find(h => h.id === id);
+              if (hotspot?.track_id) {
+                handleStormSelect(hotspot.track_id);
+              }
             }
           }}
         />
 
+        {/* Loading indicator */}
+        {isLoading && (
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30">
+            <div className="glass-panel px-4 py-2 rounded-full flex items-center gap-2">
+              <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm text-muted-foreground">Loading forecast data...</span>
+            </div>
+          </div>
+        )}
+
         {/* Command Sidebar - Left */}
         <CommandSidebar
-          storms={DEMO_STORMS}
+          storms={storms}
           selectedStormId={selectedStormId}
           onStormSelect={handleStormSelect}
           onRegionSelect={handleRegionClick}
@@ -261,7 +252,7 @@ const Index = () => {
         <StormDetailPanel
           isOpen={isDetailPanelOpen}
           onClose={() => setIsDetailPanelOpen(false)}
-          storm={selectedStorm as any}
+          storm={selectedStorm}
         />
 
         {/* Time Controls - Bottom Center */}
