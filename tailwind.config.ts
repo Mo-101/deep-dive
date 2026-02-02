@@ -57,6 +57,29 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // AFRO Storm custom colors
+        storm: {
+          danger: "hsl(var(--storm-danger))",
+          warning: "hsl(var(--storm-warning))",
+          caution: "hsl(var(--storm-caution))",
+          safe: "hsl(var(--storm-safe))",
+          info: "hsl(var(--storm-info))",
+        },
+        cyclone: {
+          td: "hsl(var(--cyclone-td))",
+          ts: "hsl(var(--cyclone-ts))",
+          cat1: "hsl(var(--cyclone-cat1))",
+          cat2: "hsl(var(--cyclone-cat2))",
+          cat3: "hsl(var(--cyclone-cat3))",
+          cat4: "hsl(var(--cyclone-cat4))",
+          cat5: "hsl(var(--cyclone-cat5))",
+        },
+        region: {
+          io: "hsl(var(--region-io))",
+          ea: "hsl(var(--region-ea))",
+          sa: "hsl(var(--region-sa))",
+          wa: "hsl(var(--region-wa))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -65,25 +88,30 @@ export default {
       },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        "pulse-glow": {
+          "0%, 100%": { opacity: "1", transform: "scale(1)" },
+          "50%": { opacity: "0.7", transform: "scale(1.1)" },
+        },
+        "radar-sweep": {
+          "0%": { transform: "rotate(0deg)" },
+          "100%": { transform: "rotate(360deg)" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
+        "radar-sweep": "radar-sweep 4s linear infinite",
+      },
+      fontFamily: {
+        mono: ["JetBrains Mono", "Fira Code", "monospace"],
       },
     },
   },
