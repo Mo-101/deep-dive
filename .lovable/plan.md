@@ -1,168 +1,149 @@
 
+# Plan: Fix Build Errors, Simplify Map Layers & Add Wind Colorbar
 
-# 🌍 AFRO Storm — African Continental Multi-Hazard Early Warning System
+## Overview
 
-*"No one left behind. No disaster unseen."*
-
----
-
-## The Mission
-
-Building Africa's first purpose-built weather disaster surveillance engine — a command center that gives communities the TIME to survive. Starting with tropical cyclones, expanding to floods, droughts, and landslides. This is the foundation of continental climate sovereignty.
+This plan addresses three objectives:
+1. **Fix the build error** in `GridConsciousness.tsx` (Python docstring syntax in TypeScript file)
+2. **Simplify map layers** to a single wind particle layer (removing redundant weather overlays)
+3. **Add a professional wind speed colorbar** with standard meteorological colors
 
 ---
 
-## Phase 1: Command Center Foundation
+## Current State Analysis
 
-### 1.1 Full-Screen Mapbox Map
-- Dark operations-center theme covering all of Africa and surrounding oceans
-- African-inspired accent colors (warm golds, deep reds, ocean blues)
-- Smooth zoom from continental view to local impact zones
-- Satellite/terrain toggle for situational awareness
+### Build Error
+The `GridConsciousness.tsx` file starts with Python docstring syntax (`"""`) on line 1, which TypeScript cannot parse. This must be converted to TypeScript comments.
 
-### 1.2 Database Architecture (Supabase)
-| Table | Purpose |
-|-------|---------|
-| `forecasts` | Forecast metadata (source, model, timestamp, lead time) |
-| `cyclone_tracks` | Individual storm trajectories with track IDs |
-| `hotspots` | Geospatial probability points (lat/lon, hurricane_prob, track_prob) |
-| `disaster_types` | Configurable types (cyclone, flood, drought, landslide) |
-| `regions` | African countries, ocean basins, regional hubs |
-| `alerts` | Generated warnings with severity levels |
+### Current Map Layers
+The `AfricaMap.tsx` currently has multiple layers:
+- **Wind Particle Layer** (raster-particle from Mapbox) - white particles
+- **Earth Thermal Heatmap** (from localhost:9000 backend)
+- **Cyclones Layer** (circle markers)
+- **Outbreaks Layer** (circle markers)
+- **Convergence Lines** (connecting outbreak to cyclone)
 
-### 1.3 Initial Data Loading
-- Parse your `cyclone_hotspots_jan31.json` data
-- Load the 3 detected cyclone tracks (IO192026, SH982026, SH992026)
-- Store with proper geospatial indexing for fast queries
+Additionally, there's an `AnimatedWeatherLayer.tsx` component with:
+- Precipitation particles (canvas overlay)
+- Temperature overlay
+- Wind arrows
 
----
-
-## Phase 2: Cyclone Visualization (MVP)
-
-### 2.1 Hotspot Layer
-- Render probability points as pulsing circles on the map
-- Color gradient: Green (low) → Yellow → Orange → Red (high hurricane probability)
-- Size scaled by track probability
-- Click for detailed probability breakdown
-
-### 2.2 Track Visualization
-- Animated polylines showing storm trajectories
-- Time markers every 6 hours along the path
-- Wind speed indicators at each point
-- Intensity coloring (tropical storm → category 1-5)
-
-### 2.3 Collapsible Sidebar (Left Edge)
-- **Forecast Selector**: Date/time picker with available forecasts
-- **Data Source Badge**: "Google DeepMind FNV3" with model info
-- **Active Storms List**: Quick navigation to each tracked cyclone
-- **Probability Legend**: Color scale explanation
-- **Quick Stats**: Total hotspots, max probability, storms tracked
-
-### 2.4 Storm Detail Panel (Slides from Right)
-- Storm name/ID and current position
-- Wind speed, pressure, storm radius (r8)
-- 6-hour forecast positions
-- Countries/regions in potential path
-- Historical comparison (once data accumulates)
+### Requested Changes
+- Keep only **ONE weather layer**: the wind particle layer
+- Apply **standard wind colorbar** (rainbow scale from calm to extreme winds)
+- Remove redundant layers
 
 ---
 
-## Phase 3: Real-Time Operations Features
+## Implementation Steps
 
-### 3.1 Continental Threat Bar (Top)
-- Regional threat levels: Indian Ocean | East Africa | Southern Africa | West Africa
-- Color-coded severity badges
-- Click to zoom to that region
-- Active event counters
+### Step 1: Fix GridConsciousness.tsx Syntax Error
+Convert the Python docstring at the top of the file to TypeScript comments.
 
-### 3.2 Time Animation Controls
-- Slider to step through forecast lead times (T+0h to T+240h)
-- Play/pause animation
-- Speed controls for briefings
-- "Jump to peak intensity" button
+**Change lines 1-4:**
+```typescript
+// From:
+"""
+MoStar Grid Consciousness Component
+Frontend integration for 197K-node Neo4j knowledge graph, Ifá reasoning, and dual AI
+"""
 
-### 3.3 Search & Filter
-- Search by storm name, location, or region
-- Filter by probability threshold
-- Filter by forecast model/source
-- Toggle historical vs. current forecasts
-
----
-
-## Phase 4: Data Ingestion API
-
-### 4.1 REST Endpoints (Edge Functions)
-```
-POST   /api/forecasts           — Ingest new forecast data
-GET    /api/forecasts           — List available forecasts  
-GET    /api/forecasts/:id       — Get forecast details
-GET    /api/forecasts/:id/hotspots  — Get hotspots for forecast
-GET    /api/tracks              — List active cyclone tracks
-GET    /api/tracks/:id          — Get track trajectory
-GET    /api/hotspots?region=...&min_prob=...  — Query by criteria
+// To:
+/**
+ * MoStar Grid Consciousness Component
+ * Frontend integration for 197K-node Neo4j knowledge graph, Ifá reasoning, and dual AI
+ */
 ```
 
-### 4.2 Data Format Support
-- JSON format (like your uploaded hotspots file)
-- CSV track format (like your FNV3 paired files)
-- Ready for NetCDF processing (future phase)
+---
 
-### 4.3 API Security
-- API key authentication for external systems
-- Rate limiting for protection
-- Audit logging for all ingestion
+### Step 2: Simplify AfricaMap Layers
+
+Remove the following from `initializeLayers()`:
+- Earth Thermal Source and Layer (localhost backend dependency removed)
+- Keep only wind particle layer with improved colors
+
+**Modified Wind Layer Paint (Standard Meteorological Colorbar):**
+```typescript
+'raster-particle-color': [
+  'interpolate',
+  ['linear'],
+  ['raster-particle-speed'],
+  0, 'rgba(98, 113, 183, 0.8)',    // Light blue (calm)
+  5, 'rgba(57, 181, 74, 0.85)',    // Green (light breeze)
+  10, 'rgba(255, 255, 0, 0.9)',    // Yellow (moderate)
+  15, 'rgba(255, 170, 0, 0.9)',    // Orange (fresh)
+  20, 'rgba(255, 85, 0, 0.95)',    // Red-orange (strong)
+  25, 'rgba(255, 0, 0, 1)',        // Red (gale)
+  30, 'rgba(180, 0, 100, 1)',      // Magenta (storm)
+  40, 'rgba(128, 0, 128, 1)'       // Purple (hurricane)
+]
+```
 
 ---
 
-## Phase 5: Future Expansion (Architecture Ready)
+### Step 3: Add Wind Speed Legend/Colorbar
 
-### 5.1 Multi-Hazard Support
-- Same map interface, toggle between disaster types
-- Flood risk layers (when data sources connected)
-- Drought indices (SPI, SPEI visualization)
-- Landslide susceptibility zones
+Add a wind speed legend component to the map UI showing the color scale:
 
-### 5.2 ECMWF Integration (Template Ready)
-- Module structure for IFS forecasts
-- ERA5 historical validation
-- 51-member ensemble processing
-- Placeholder for API credentials
+```text
+┌─────────────────────────────┐
+│ 🌬️ Wind Speed (m/s)        │
+│ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓       │
+│ 0   10   20   30   40+      │
+│ Calm → Storm → Hurricane    │
+└─────────────────────────────┘
+```
 
-### 5.3 AMHEWAS Compliance
-- GeoJSON exports for myDEWETRA
-- Regional hub data feeds
-- Continental Watch integration points
+Position: Bottom-left of map, above the forecast slider.
 
 ---
 
-## Technical Architecture
+### Step 4: Remove AnimatedWeatherLayer References
 
-| Component | Technology |
-|-----------|------------|
-| Frontend | React + TypeScript + Tailwind CSS |
-| Map | Mapbox GL JS (dark theme) |
-| Backend | Supabase via Lovable Cloud |
-| Database | PostgreSQL with PostGIS |
-| API | Supabase Edge Functions |
-| Charts | Recharts |
-| State | TanStack Query |
+Remove or disable the `AnimatedWeatherLayer` component since we're keeping only the Mapbox wind particle layer.
 
 ---
 
-## Immediate Deliverables
+## Technical Details
 
-When implemented, you'll have:
+### Files to Modify
 
-1. ✅ Full-screen Mapbox command center with dark operations theme
-2. ✅ Your Jan 31 cyclone hotspots visualized with probability colors
-3. ✅ 3 cyclone tracks (IO192026, SH982026, SH992026) rendered
-4. ✅ Interactive sidebar with storm list and legend
-5. ✅ Detail panels for each storm
-6. ✅ Database storing all forecast data
-7. ✅ API endpoints for external system integration
-8. ✅ Architecture ready for floods, droughts, landslides
+| File | Changes |
+|------|---------|
+| `src/components/mostar-grid/GridConsciousness.tsx` | Fix Python docstring → TypeScript JSDoc |
+| `src/components/map/AfricaMap.tsx` | Remove earth-thermal layer, update wind colors, add colorbar |
+| `src/components/map/AnimatedWeatherLayer.tsx` | No changes (file kept but not used) |
+
+### Wind Color Scale (Standard Beaufort-inspired)
+
+| Speed (m/s) | Description | Color |
+|-------------|-------------|-------|
+| 0-5 | Calm/Light | Blue |
+| 5-10 | Gentle/Moderate | Green |
+| 10-15 | Fresh | Yellow |
+| 15-20 | Strong | Orange |
+| 20-25 | Gale | Red-Orange |
+| 25-30 | Storm | Red |
+| 30-40 | Violent Storm | Magenta |
+| 40+ | Hurricane | Purple |
 
 ---
 
-*This is the beginning of African climate sovereignty. Every feature serves one purpose: giving communities the time to survive.*
+## Summary of Changes
 
+1. **Fix build error**: Python `"""` → TypeScript `/** */` in GridConsciousness.tsx
+2. **Remove**: Earth Thermal layer (backend dependency)
+3. **Keep**: Wind particle layer with rainbow colorbar
+4. **Add**: Wind speed legend component
+5. **Result**: Single, professional wind visualization layer
+
+---
+
+## Benefits
+
+- Fixes immediate build error
+- Removes dependency on localhost:9000 backend for map to work
+- Professional meteorological color scheme
+- Clear legend for users to interpret wind speeds
+- Cleaner, more maintainable codebase
