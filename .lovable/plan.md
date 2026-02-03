@@ -1,149 +1,40 @@
 
 # Plan: Fix Build Errors, Simplify Map Layers & Add Wind Colorbar
 
-## Overview
+## Status: ✅ COMPLETED
 
-This plan addresses three objectives:
-1. **Fix the build error** in `GridConsciousness.tsx` (Python docstring syntax in TypeScript file)
-2. **Simplify map layers** to a single wind particle layer (removing redundant weather overlays)
-3. **Add a professional wind speed colorbar** with standard meteorological colors
+## Summary of Changes Made
 
----
+### 1. ✅ Fixed GridConsciousness.tsx Build Error
+- Converted Python docstring `"""..."""` to TypeScript JSDoc `/** ... */`
 
-## Current State Analysis
+### 2. ✅ Simplified Map Layers
+- Removed Earth Thermal heatmap layer (was dependent on localhost:9000 backend)
+- Kept single wind particle layer with professional colorbar
 
-### Build Error
-The `GridConsciousness.tsx` file starts with Python docstring syntax (`"""`) on line 1, which TypeScript cannot parse. This must be converted to TypeScript comments.
+### 3. ✅ Updated Wind Layer Colors (Standard Meteorological)
+- 0 m/s: Light blue (calm)
+- 5 m/s: Green (light breeze)
+- 10 m/s: Yellow (moderate)
+- 15 m/s: Orange (fresh)
+- 20 m/s: Red-orange (strong)
+- 25 m/s: Red (gale)
+- 30 m/s: Magenta (storm)
+- 40 m/s: Purple (hurricane)
 
-### Current Map Layers
-The `AfricaMap.tsx` currently has multiple layers:
-- **Wind Particle Layer** (raster-particle from Mapbox) - white particles
-- **Earth Thermal Heatmap** (from localhost:9000 backend)
-- **Cyclones Layer** (circle markers)
-- **Outbreaks Layer** (circle markers)
-- **Convergence Lines** (connecting outbreak to cyclone)
+### 4. ✅ Added Wind Speed Legend Component
+- Created `src/components/map/WindSpeedLegend.tsx`
+- Professional gradient colorbar with speed labels
+- Positioned bottom-left of map
 
-Additionally, there's an `AnimatedWeatherLayer.tsx` component with:
-- Precipitation particles (canvas overlay)
-- Temperature overlay
-- Wind arrows
+### 5. ✅ Fixed Other Build Errors
+- Fixed duplicate export in `src/components/weather/index.ts`
+- Fixed invalid `canvas` source type in `PrecipitationRadarLayer.tsx` (changed to `image`)
 
-### Requested Changes
-- Keep only **ONE weather layer**: the wind particle layer
-- Apply **standard wind colorbar** (rainbow scale from calm to extreme winds)
-- Remove redundant layers
-
----
-
-## Implementation Steps
-
-### Step 1: Fix GridConsciousness.tsx Syntax Error
-Convert the Python docstring at the top of the file to TypeScript comments.
-
-**Change lines 1-4:**
-```typescript
-// From:
-"""
-MoStar Grid Consciousness Component
-Frontend integration for 197K-node Neo4j knowledge graph, Ifá reasoning, and dual AI
-"""
-
-// To:
-/**
- * MoStar Grid Consciousness Component
- * Frontend integration for 197K-node Neo4j knowledge graph, Ifá reasoning, and dual AI
- */
-```
-
----
-
-### Step 2: Simplify AfricaMap Layers
-
-Remove the following from `initializeLayers()`:
-- Earth Thermal Source and Layer (localhost backend dependency removed)
-- Keep only wind particle layer with improved colors
-
-**Modified Wind Layer Paint (Standard Meteorological Colorbar):**
-```typescript
-'raster-particle-color': [
-  'interpolate',
-  ['linear'],
-  ['raster-particle-speed'],
-  0, 'rgba(98, 113, 183, 0.8)',    // Light blue (calm)
-  5, 'rgba(57, 181, 74, 0.85)',    // Green (light breeze)
-  10, 'rgba(255, 255, 0, 0.9)',    // Yellow (moderate)
-  15, 'rgba(255, 170, 0, 0.9)',    // Orange (fresh)
-  20, 'rgba(255, 85, 0, 0.95)',    // Red-orange (strong)
-  25, 'rgba(255, 0, 0, 1)',        // Red (gale)
-  30, 'rgba(180, 0, 100, 1)',      // Magenta (storm)
-  40, 'rgba(128, 0, 128, 1)'       // Purple (hurricane)
-]
-```
-
----
-
-### Step 3: Add Wind Speed Legend/Colorbar
-
-Add a wind speed legend component to the map UI showing the color scale:
-
-```text
-┌─────────────────────────────┐
-│ 🌬️ Wind Speed (m/s)        │
-│ ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓       │
-│ 0   10   20   30   40+      │
-│ Calm → Storm → Hurricane    │
-└─────────────────────────────┘
-```
-
-Position: Bottom-left of map, above the forecast slider.
-
----
-
-### Step 4: Remove AnimatedWeatherLayer References
-
-Remove or disable the `AnimatedWeatherLayer` component since we're keeping only the Mapbox wind particle layer.
-
----
-
-## Technical Details
-
-### Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/components/mostar-grid/GridConsciousness.tsx` | Fix Python docstring → TypeScript JSDoc |
-| `src/components/map/AfricaMap.tsx` | Remove earth-thermal layer, update wind colors, add colorbar |
-| `src/components/map/AnimatedWeatherLayer.tsx` | No changes (file kept but not used) |
-
-### Wind Color Scale (Standard Beaufort-inspired)
-
-| Speed (m/s) | Description | Color |
-|-------------|-------------|-------|
-| 0-5 | Calm/Light | Blue |
-| 5-10 | Gentle/Moderate | Green |
-| 10-15 | Fresh | Yellow |
-| 15-20 | Strong | Orange |
-| 20-25 | Gale | Red-Orange |
-| 25-30 | Storm | Red |
-| 30-40 | Violent Storm | Magenta |
-| 40+ | Hurricane | Purple |
-
----
-
-## Summary of Changes
-
-1. **Fix build error**: Python `"""` → TypeScript `/** */` in GridConsciousness.tsx
-2. **Remove**: Earth Thermal layer (backend dependency)
-3. **Keep**: Wind particle layer with rainbow colorbar
-4. **Add**: Wind speed legend component
-5. **Result**: Single, professional wind visualization layer
-
----
-
-## Benefits
-
-- Fixes immediate build error
-- Removes dependency on localhost:9000 backend for map to work
-- Professional meteorological color scheme
-- Clear legend for users to interpret wind speeds
-- Cleaner, more maintainable codebase
+## Files Modified
+- `src/components/mostar-grid/GridConsciousness.tsx` - Fixed docstring
+- `src/components/map/AfricaMap.tsx` - Updated wind colors, removed earth-thermal, added legend
+- `src/components/map/WindSpeedLegend.tsx` - New component
+- `src/components/map/index.ts` - Added WindSpeedLegend export
+- `src/components/weather/index.ts` - Fixed duplicate export
+- `src/components/map/PrecipitationRadarLayer.tsx` - Fixed canvas source type

@@ -95,40 +95,46 @@ export const PrecipitationRadarLayer = ({
   useEffect(() => {
     if (!map || !visible) return;
 
-    // Add canvas source for radar overlay
-    if (!map.getSource('radar-canvas')) {
+    // Add image source for radar overlay (using 'image' type instead of 'canvas')
+    if (!map.getSource('radar-image')) {
+      // Create a canvas and get its data URL
       const canvas = document.createElement('canvas');
       canvas.width = 512;
       canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        // Draw initial transparent frame
+        ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+        ctx.fillRect(0, 0, 512, 512);
+      }
       
-      map.addSource('radar-canvas', {
-        type: 'canvas',
-        canvas: canvas.id,
+      map.addSource('radar-image', {
+        type: 'image',
+        url: canvas.toDataURL(),
         coordinates: [
           [-20, 40], // NW
           [60, 40],  // NE
           [60, -40], // SE
           [-20, -40] // SW
-        ],
-        animate: true
+        ]
       });
 
       map.addLayer({
         id: 'radar-layer',
         type: 'raster',
-        source: 'radar-canvas',
+        source: 'radar-image',
         paint: {
           'raster-opacity': opacity,
           'raster-fade-duration': 0
         }
       });
 
-      canvasLayerRef.current = map.getSource('radar-canvas') as mapboxgl.CanvasSource;
+      canvasLayerRef.current = map.getSource('radar-image') as any;
     }
 
     return () => {
       if (map.getLayer('radar-layer')) map.removeLayer('radar-layer');
-      if (map.getSource('radar-canvas')) map.removeSource('radar-canvas');
+      if (map.getSource('radar-image')) map.removeSource('radar-image');
     };
   }, [map, visible, opacity]);
 
