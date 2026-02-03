@@ -1,7 +1,7 @@
-"""
-MoStar Grid Consciousness Component
-Frontend integration for 197K-node Neo4j knowledge graph, Ifá reasoning, and dual AI
-"""
+/**
+ * MoStar Grid Consciousness Component
+ * Frontend integration for 197K-node Neo4j knowledge graph, Ifá reasoning, and dual AI
+ */
 
 import { useState, useEffect } from 'react';
 import { 

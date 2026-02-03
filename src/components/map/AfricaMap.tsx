@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Activity, Wind, AlertTriangle, ShieldAlert, ChevronRight, Info, Clock, MapPin, Droplets, TrendingUp } from 'lucide-react';
+import { WindSpeedLegend } from './WindSpeedLegend';
 import { cn } from '@/lib/utils';
 import { WeatherIconCard } from './WeatherIconCard';
 import { apiCache, cachedFetch } from '@/lib/api-cache';
@@ -276,19 +277,24 @@ const AfricaMap = ({
           type: 'raster-particle',
           source: 'raster-array-source',
           'source-layer': '10winds',
-          paint: {
+        paint: {
             'raster-particle-speed-factor': 0.4,
             'raster-particle-fade-opacity-factor': 0.9,
             'raster-particle-reset-rate-factor': 0.4,
             'raster-particle-count': 4000,
-            'raster-particle-max-speed': 25,
+            'raster-particle-max-speed': 40,
             'raster-particle-color': [
               'interpolate',
               ['linear'],
               ['raster-particle-speed'],
-              0, 'rgba(255, 255, 255, 0.6)',
-              20, 'rgba(255, 255, 255, 0.8)',
-              40, 'rgba(255, 255, 255, 1)'
+              0, 'rgba(98, 113, 183, 0.8)',    // Light blue (calm)
+              5, 'rgba(57, 181, 74, 0.85)',    // Green (light breeze)
+              10, 'rgba(255, 255, 0, 0.9)',    // Yellow (moderate)
+              15, 'rgba(255, 170, 0, 0.9)',    // Orange (fresh)
+              20, 'rgba(255, 85, 0, 0.95)',    // Red-orange (strong)
+              25, 'rgba(255, 0, 0, 1)',        // Red (gale)
+              30, 'rgba(180, 0, 100, 1)',      // Magenta (storm)
+              40, 'rgba(128, 0, 128, 1)'       // Purple (hurricane)
             ]
           }
         });
@@ -297,77 +303,7 @@ const AfricaMap = ({
       console.warn('Wind layer setup:', e);
     }
 
-    // Earth Thermal Layer (NetCDF from Backend)
-    try {
-      if (!map.getSource('earth-thermal-source')) {
-        map.addSource('earth-thermal-source', {
-          type: 'geojson',
-          data: 'http://localhost:9000/api/layer/earth-thermal' // Live backend
-        });
-
-        // Heatmap for Thermal Comfort
-        if (!map.getLayer('earth-thermal-heat')) {
-          map.addLayer({
-            id: 'earth-thermal-heat',
-            type: 'heatmap',
-            source: 'earth-thermal-source',
-            maxzoom: 9,
-            paint: {
-              // Increase the heatmap weight based on frequency and property magnitude
-              'heatmap-weight': [
-                'interpolate',
-                ['linear'],
-                ['get', 'value'],
-                20, 0,
-                30, 0.5,
-                40, 1
-              ],
-              // Increase the heatmap color weight weight by zoom level
-              // heatmap-intensity is a multiplier on top of heatmap-weight
-              'heatmap-intensity': [
-                'interpolate',
-                ['linear'],
-                ['zoom'],
-                0, 1,
-                9, 3
-              ],
-              // Color ramp for heatmap.  Domain is 0 (low) to 1 (high).
-              // Begin color ramp at 0-stop with a 0-transparancy color
-              // to create a blur-like effect.
-              'heatmap-color': [
-                'interpolate',
-                ['linear'],
-                ['heatmap-density'],
-                0, 'rgba(33,102,172,0)',
-                0.2, 'rgb(103,169,207)',
-                0.4, 'rgb(209,229,240)',
-                0.6, 'rgb(253,219,199)',
-                0.8, 'rgb(239,138,98)',
-                1, 'rgb(178,24,43)'
-              ],
-              // Adjust the heatmap radius by zoom level
-              'heatmap-radius': [
-                'interpolate',
-                ['linear'],
-                ['zoom'],
-                0, 2,
-                9, 20
-              ],
-              // Transition from heatmap to circle layer by zoom level
-              'heatmap-opacity': [
-                'interpolate',
-                ['linear'],
-                ['zoom'],
-                7, 1,
-                9, 0
-              ]
-            }
-          }, 'wind-layer'); // Place below wind layer
-        }
-      }
-    } catch (e) {
-      console.warn('Earth Thermal setup:', e);
-    }
+    // Note: Earth Thermal Layer removed - single wind particle layer now used
 
     // Trigger existing data update logic
     // We do this by triggering the effects relying on data state
@@ -580,6 +516,9 @@ const AfricaMap = ({
           </div>
         </div>
       )}
+
+      {/* Wind Speed Legend */}
+      <WindSpeedLegend />
 
       {/* Situation Intel Sidebar */}
       <div className={cn(
