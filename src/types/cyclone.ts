@@ -11,6 +11,17 @@ export interface Forecast {
   metadata?: Record<string, unknown>;
 }
 
+export interface Scenario {
+  scenario_id: number;
+  probability: number;
+  track_points: {
+    lat: number;
+    lon: number;
+    intensity: number; // wind speed in kt
+    timestamp: string;
+  }[];
+}
+
 export interface CycloneTrack {
   id: string;
   forecast_id: string;
@@ -18,6 +29,8 @@ export interface CycloneTrack {
   storm_name?: string;
   basin: string;
   created_at: string;
+  scenarios?: Scenario[]; // Ensemble members
+  mean_track?: Scenario;  // The high-probability mean path
 }
 
 export interface Hotspot {
@@ -97,7 +110,7 @@ export const CYCLONE_CATEGORIES: CycloneIntensity[] = [
 ];
 
 export function getCycloneCategory(windSpeedKt: number): CycloneIntensity {
-  return CYCLONE_CATEGORIES.find(c => windSpeedKt >= c.minWind && windSpeedKt <= c.maxWind) 
+  return CYCLONE_CATEGORIES.find(c => windSpeedKt >= c.minWind && windSpeedKt <= c.maxWind)
     || CYCLONE_CATEGORIES[0];
 }
 

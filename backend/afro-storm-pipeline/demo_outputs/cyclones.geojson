@@ -1,0 +1,24 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          47.25,
+          -19.5
+        ]
+      },
+      "properties": {
+        "track_probability": 1.0,
+        "wind_34kt_probability": 1.0,
+        "threat_level": "TROPICAL_STORM"
+      }
+    }
+  ],
+  "metadata": {
+    "source": "Demo Data",
+    "type": "Cyclone Threats"
+  }
+}

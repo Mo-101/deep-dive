@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Earth Data & Large Files
+data_dir/
+*.nc
+*.zip
+venv/
+.venv/

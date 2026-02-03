@@ -1,0 +1,63 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          47.5,
+          -18.9
+        ]
+      },
+      "properties": {
+        "disease": "Cholera",
+        "location": "Antananarivo",
+        "country": "Madagascar",
+        "cases": 156,
+        "deaths": 22,
+        "severity": "high"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          5.195,
+          7.25
+        ]
+      },
+      "properties": {
+        "disease": "Lassa Fever",
+        "location": "Ondo State",
+        "country": "Nigeria",
+        "cases": 45,
+        "deaths": 8,
+        "severity": "high"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          15.322,
+          -4.325
+        ]
+      },
+      "properties": {
+        "disease": "Mpox",
+        "location": "Kinshasa",
+        "country": "DRC",
+        "cases": 127,
+        "deaths": 3,
+        "severity": "medium"
+      }
+    }
+  ],
+  "metadata": {
+    "source": "Demo Data",
+    "type": "Disease Outbreaks"
+  }
+}

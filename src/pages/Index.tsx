@@ -12,6 +12,7 @@ const Index = () => {
   const [map, setMap] = useState<mapboxgl.Map | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedStormId, setSelectedStormId] = useState<string | undefined>();
+  const [activeStyle, setActiveStyle] = useState('mapbox://styles/akanimo1/cml5r2sfb000w01sh8rkcajww');
   const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false);
   const [currentLeadTime, setCurrentLeadTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -47,9 +48,9 @@ const Index = () => {
   // Calculate threat levels from hotspots
   const threats = useMemo(() => {
     if (!hotspotsData) return [];
-    
+
     const regionThreats: Record<string, { maxProb: number; count: number }> = {};
-    
+
     hotspotsData.forEach(hotspot => {
       const basin = hotspot.cyclone_tracks?.basin;
       if (basin) {
@@ -64,8 +65,8 @@ const Index = () => {
     return Object.entries(regionThreats).map(([region, data]) => ({
       region,
       level: data.maxProb >= 0.8 ? 'severe' as const :
-             data.maxProb >= 0.6 ? 'high' as const :
-             data.maxProb >= 0.4 ? 'moderate' as const : 'low' as const,
+        data.maxProb >= 0.6 ? 'high' as const :
+          data.maxProb >= 0.4 ? 'moderate' as const : 'low' as const,
       activeEvents: data.count,
     }));
   }, [hotspotsData]);
@@ -79,7 +80,7 @@ const Index = () => {
   // Animation playback
   useEffect(() => {
     if (!isPlaying) return;
-    
+
     const interval = setInterval(() => {
       setCurrentLeadTime((prev) => {
         if (prev >= 240) {
@@ -93,68 +94,7 @@ const Index = () => {
     return () => clearInterval(interval);
   }, [isPlaying, playbackSpeed]);
 
-  // Update map when hotspots data changes
-  useEffect(() => {
-    if (!map || !hotspotsData) return;
-
-    const hotspotsSource = map.getSource('hotspots') as mapboxgl.GeoJSONSource;
-    const tracksSource = map.getSource('tracks') as mapboxgl.GeoJSONSource;
-
-    if (hotspotsSource) {
-      const hotspotsGeoJSON: GeoJSON.FeatureCollection = {
-        type: 'FeatureCollection',
-        features: hotspotsData
-          .filter(h => h.lead_time_hours === currentLeadTime || currentLeadTime === 0)
-          .map((hotspot) => ({
-            type: 'Feature',
-            properties: {
-              id: hotspot.id,
-              track_id: hotspot.track_id,
-              hurricane_prob: hotspot.hurricane_prob,
-              track_prob: hotspot.track_prob,
-              color: getProbabilityColor(hotspot.hurricane_prob || 0),
-            },
-            geometry: {
-              type: 'Point',
-              coordinates: [hotspot.longitude, hotspot.latitude],
-            },
-          })),
-      };
-      hotspotsSource.setData(hotspotsGeoJSON);
-    }
-
-    if (tracksSource && tracksData) {
-      // Group hotspots by track to create lines
-      const trackLines: Record<string, [number, number][]> = {};
-      hotspotsData.forEach(h => {
-        if (h.track_id) {
-          if (!trackLines[h.track_id]) trackLines[h.track_id] = [];
-          trackLines[h.track_id].push([h.longitude, h.latitude]);
-        }
-      });
-
-      const tracksGeoJSON: GeoJSON.FeatureCollection = {
-        type: 'FeatureCollection',
-        features: Object.entries(trackLines)
-          .filter(([_, coords]) => coords.length > 1)
-          .map(([trackId, coords]) => {
-            const trackHotspot = hotspotsData.find(h => h.track_id === trackId);
-            return {
-              type: 'Feature',
-              properties: {
-                track_id: trackId,
-                color: getProbabilityColor(trackHotspot?.hurricane_prob || 0),
-              },
-              geometry: {
-                type: 'LineString',
-                coordinates: coords,
-              },
-            };
-          }),
-      };
-      tracksSource.setData(tracksGeoJSON);
-    }
-  }, [map, hotspotsData, tracksData, currentLeadTime]);
+  // Map update logic removed for simplification
 
   // Handle map load
   const handleMapLoad = useCallback((mapInstance: mapboxgl.Map) => {
@@ -196,7 +136,7 @@ const Index = () => {
     if (!selectedStormId || !tracksData) return undefined;
     const track = tracksData.find(t => t.id === selectedStormId);
     if (!track) return undefined;
-    
+
     return {
       track_id: track.track_id,
       storm_name: track.storm_name,
@@ -220,14 +160,8 @@ const Index = () => {
       <div className="relative h-[calc(100vh-4rem)]">
         <AfricaMap
           onMapLoad={handleMapLoad}
-          onHotspotClick={(id) => {
-            if (hotspotsData) {
-              const hotspot = hotspotsData.find(h => h.id === id);
-              if (hotspot?.track_id) {
-                handleStormSelect(hotspot.track_id);
-              }
-            }
-          }}
+          activeStyle={activeStyle}
+          onStyleChange={setActiveStyle}
         />
 
         {/* Loading indicator */}

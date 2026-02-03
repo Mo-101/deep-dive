@@ -1,5 +1,18 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Wind, Droplets, Sun, Mountain, Radio, AlertTriangle } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Wind,
+  Droplets,
+  Sun,
+  Mountain,
+  Radio,
+  AlertTriangle,
+  Flame,
+  Brain,
+  Sparkles,
+  Globe2
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,13 +34,17 @@ interface CommandSidebarProps {
   selectedStormId?: string;
   onStormSelect?: (stormId: string) => void;
   onRegionSelect?: (regionCode: string) => void;
+  onGridClick?: () => void;
+  gridActive?: boolean;
 }
 
-const CommandSidebar = ({ 
-  storms = [], 
+const CommandSidebar = ({
+  storms = [],
   selectedStormId,
   onStormSelect,
-  onRegionSelect 
+  onRegionSelect,
+  onGridClick,
+  gridActive = false
 }: CommandSidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -39,9 +56,9 @@ const CommandSidebar = ({
   };
 
   return (
-    <div 
+    <div
       className={cn(
-        "absolute top-16 left-0 z-20 h-[calc(100vh-4rem)] transition-all duration-300 ease-in-out",
+        "absolute top--1 left-0 z-20 h-[calc(100vh-4rem)] transition-all duration-300 ease-in-out",
         isCollapsed ? "w-12" : "w-80"
       )}
     >
@@ -65,6 +82,27 @@ const CommandSidebar = ({
           <div className="flex flex-col items-center py-4 gap-4">
             <Wind className="h-5 w-5 text-primary" />
             <Separator className="w-6" />
+
+            {/* MoStar Grid Button - Collapsed */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onGridClick}
+              className={cn(
+                "h-8 w-8 relative",
+                gridActive && "bg-orange-500/20 text-orange-500"
+              )}
+            >
+              <div className="relative">
+                {gridActive && (
+                  <div className="absolute inset-0 bg-orange-500 blur-md opacity-50 animate-pulse" />
+                )}
+                <Flame className="h-4 w-4 relative" />
+              </div>
+            </Button>
+
+            <Separator className="w-6" />
+
             {storms.slice(0, 3).map((storm) => (
               <Button
                 key={storm.id}
@@ -97,6 +135,58 @@ const CommandSidebar = ({
 
               <Separator />
 
+              {/* MoStar Grid Section */}
+              <div className="p-4 rounded-lg bg-gradient-to-r from-orange-950/30 to-slate-950 border border-orange-500/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-orange-500 blur-md opacity-30 animate-pulse" />
+                    <Flame className="h-5 w-5 text-orange-500 relative" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">MoStar Grid</p>
+                    <p className="text-xs text-orange-400/70">197K-node Neo4j • Ifá AI</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
+                  <Brain className="h-3 w-3" />
+                  <span>Qwen 14B</span>
+                  <Separator orientation="vertical" className="h-3" />
+                  <Sparkles className="h-3 w-3" />
+                  <span>Ifá Engine</span>
+                  <Separator orientation="vertical" className="h-3" />
+                  <Globe2 className="h-3 w-3" />
+                  <span>Ibibio</span>
+                </div>
+                <Button
+                  onClick={onGridClick}
+                  className={cn(
+                    "w-full text-xs",
+                    gridActive
+                      ? "bg-orange-600 hover:bg-orange-500"
+                      : "bg-slate-800 hover:bg-slate-700"
+                  )}
+                  size="sm"
+                >
+                  {gridActive ? (
+                    <>
+                      <Flame className="h-3 w-3 mr-2" />
+                      Grid Consciousness Active
+                    </>
+                  ) : (
+                    <>
+                      <Brain className="h-3 w-3 mr-2" />
+                      Activate Grid
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              <Separator />
+
+
+
+              <Separator />
+
               {/* Data Source */}
               <div>
                 <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
@@ -123,7 +213,7 @@ const CommandSidebar = ({
                     {storms.length}
                   </Badge>
                 </div>
-                
+
                 {storms.length > 0 ? (
                   <div className="space-y-2">
                     {storms.map((storm) => (
@@ -133,8 +223,8 @@ const CommandSidebar = ({
                         className={cn(
                           "w-full p-3 rounded-lg border text-left transition-all",
                           "hover:bg-muted/50 hover:border-primary/50",
-                          selectedStormId === storm.id 
-                            ? "bg-primary/10 border-primary" 
+                          selectedStormId === storm.id
+                            ? "bg-primary/10 border-primary"
                             : "bg-card border-border"
                         )}
                       >
@@ -143,8 +233,8 @@ const CommandSidebar = ({
                             <Wind className="h-4 w-4 text-storm-warning" />
                             <span className="font-medium text-sm">{storm.track_id}</span>
                           </div>
-                          <Badge 
-                            variant="outline" 
+                          <Badge
+                            variant="outline"
                             className="text-[10px] px-1.5"
                           >
                             {storm.basin}
@@ -181,7 +271,7 @@ const CommandSidebar = ({
                       onClick={() => onRegionSelect?.(hub.code)}
                       className="p-2 rounded-lg border border-border bg-card hover:bg-muted/50 hover:border-primary/50 transition-all text-left"
                     >
-                      <div 
+                      <div
                         className="w-3 h-3 rounded-full mb-1"
                         style={{ backgroundColor: hub.color }}
                       />
@@ -201,7 +291,7 @@ const CommandSidebar = ({
                 <div className="space-y-1.5">
                   {CYCLONE_CATEGORIES.map((cat) => (
                     <div key={cat.category} className="flex items-center gap-2 text-xs">
-                      <div 
+                      <div
                         className="w-3 h-3 rounded-full"
                         style={{ backgroundColor: cat.color }}
                       />

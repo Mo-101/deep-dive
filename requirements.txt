@@ -1,0 +1,40 @@
+# AFRO STORM Unified Backend Requirements
+
+# Core API Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+python-multipart
+
+# HTTP Client
+httpx>=0.25.0
+
+# Data Sources
+ecmwf-opendata>=0.3.26    # ECMWF Open Data
+cdsapi>=0.6.1             # ERA5 from Copernicus
+requests>=2.31.0
+
+# Data Processing
+xarray>=2023.1.0
+netCDF4>=1.6.4
+pandas>=2.0.0
+numpy>=1.24.0
+
+# TempestExtremes (install separately via conda)
+# conda install -c conda-forge tempest-extremes
+
+# MoStar Grid Components
+neo4j>=5.14.0             # Knowledge graph
+httpx                     # For Ollama API calls
+
+# Optional: BUFR parsing (for ECMWF cyclone tracks)
+# pip install ecCodes
+# or: conda install -c conda-forge eccodes python-eccodes
+
+# Visualization Support
+matplotlib>=3.7.0
+cartopy>=0.22.0
+
+# Utilities
+python-dateutil>=2.8.2
+pytz>=2023.3
