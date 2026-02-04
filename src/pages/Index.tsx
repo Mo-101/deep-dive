@@ -15,7 +15,7 @@ const Index = () => {
   const [map, setMap] = useState<mapboxgl.Map | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedStormId, setSelectedStormId] = useState<string | undefined>();
-  const [activeStyle, setActiveStyle] = useState('mapbox://styles/akanimo1/cml5r2sfb000w01sh8rkcajww');
+  const [activeStyle, setActiveStyle] = useState('mapbox://styles/akanimo1/cml72h8dv002z01qx4a518c8q');
   const [isDetailPanelOpen, setIsDetailPanelOpen] = useState(false);
   const [currentLeadTime, setCurrentLeadTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
