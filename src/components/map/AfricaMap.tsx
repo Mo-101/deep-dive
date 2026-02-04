@@ -1,11 +1,22 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
-import { Activity, Wind, AlertTriangle, ShieldAlert, ChevronRight, Info, Clock, MapPin, Droplets, TrendingUp } from 'lucide-react';
-import { WindSpeedLegend } from './WindSpeedLegend';
-import { cn } from '@/lib/utils';
-import { WeatherIconCard } from './WeatherIconCard';
-import { apiCache, cachedFetch } from '@/lib/api-cache';
+import { useEffect, useRef, useState, useCallback } from "react";
+import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
+import {
+  Activity,
+  Wind,
+  AlertTriangle,
+  ShieldAlert,
+  ChevronRight,
+  Info,
+  Clock,
+  MapPin,
+  Droplets,
+  TrendingUp,
+} from "lucide-react";
+import { WindSpeedLegend } from "./WindSpeedLegend";
+import { cn } from "@/lib/utils";
+import { WeatherIconCard } from "./WeatherIconCard";
+import { apiCache, cachedFetch } from "@/lib/api-cache";
 
 interface AfricaMapProps {
   onMapLoad?: (map: mapboxgl.Map) => void;
@@ -15,9 +26,9 @@ interface AfricaMapProps {
 
 // AFRO Storm Pipeline Data Types
 interface CycloneFeature {
-  type: 'Feature';
+  type: "Feature";
   geometry: {
-    type: 'Point';
+    type: "Point";
     coordinates: [number, number];
   };
   properties: {
@@ -25,16 +36,16 @@ interface CycloneFeature {
     wind_34kt_probability: number;
     wind_50kt_probability?: number;
     wind_64kt_probability?: number;
-    threat_level: 'LOW_THREAT' | 'TROPICAL_DEPRESSION' | 'TROPICAL_STORM' | 'STRONG_TROPICAL_STORM' | 'HURRICANE';
+    threat_level: "LOW_THREAT" | "TROPICAL_DEPRESSION" | "TROPICAL_STORM" | "STRONG_TROPICAL_STORM" | "HURRICANE";
     max_probability?: number;
     forecast_hour?: number;
   };
 }
 
 interface OutbreakFeature {
-  type: 'Feature';
+  type: "Feature";
   geometry: {
-    type: 'Point';
+    type: "Point";
     coordinates: [number, number];
   };
   properties: {
@@ -43,14 +54,14 @@ interface OutbreakFeature {
     location: string;
     cases: number;
     deaths: number;
-    severity: 'high' | 'medium' | 'low';
+    severity: "high" | "medium" | "low";
     date?: string;
     source?: string;
   };
 }
 
 interface GeoJSONData {
-  type: 'FeatureCollection';
+  type: "FeatureCollection";
   features: (CycloneFeature | OutbreakFeature)[];
   metadata?: {
     source: string;
@@ -64,11 +75,11 @@ interface GeoJSONData {
 
 interface ConvergenceZone {
   id: string;
-  outbreak: OutbreakFeature['properties'];
-  cyclone: CycloneFeature['properties'] & { location: { lat: number; lon: number } };
+  outbreak: OutbreakFeature["properties"];
+  cyclone: CycloneFeature["properties"] & { location: { lat: number; lon: number } };
   distance_km: number;
   risk_score: number;
-  alert_priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  alert_priority: "HIGH" | "MEDIUM" | "LOW";
 }
 
 interface FNV3Forecast {
@@ -79,8 +90,8 @@ interface FNV3Forecast {
 
 const AfricaMap = ({
   onMapLoad,
-  activeStyle = 'mapbox://styles/akanimo1/cml5r2sfb000w01sh8rkcajww',
-  onStyleChange
+  activeStyle = "mapbox://styles/akanimo1/cml72h8dv002z01qx4a518c8q",
+  onStyleChange,
 }: AfricaMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -88,7 +99,7 @@ const AfricaMap = ({
   const [activeDetections, setActiveDetections] = useState({
     outbreaks: 0,
     cyclones: 0,
-    convergences: 0
+    convergences: 0,
   });
   const [cycloneData, setCycloneData] = useState<GeoJSONData | null>(null);
   const [outbreakData, setOutbreakData] = useState<GeoJSONData | null>(null);
@@ -96,7 +107,7 @@ const AfricaMap = ({
   const [selectedForecastHour, setSelectedForecastHour] = useState(0);
   const [forecastFiles, setForecastFiles] = useState<FNV3Forecast[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<string>('');
+  const [lastUpdated, setLastUpdated] = useState<string>("");
 
   // Weather layer state - simplified
 
@@ -104,16 +115,16 @@ const AfricaMap = ({
   const fetchForecastList = async (): Promise<FNV3Forecast[]> => {
     // Default forecast hours from FNV3 (every 24h for 10 days)
     const hours = [0, 24, 48, 72, 96, 120, 144, 168, 192, 216, 240];
-    return hours.map(h => ({
+    return hours.map((h) => ({
       hour: h,
-      file: `fnv3_T${h.toString().padStart(3, '0')}h.geojson`
+      file: `fnv3_T${h.toString().padStart(3, "0")}h.geojson`,
     }));
   };
 
   // Fetch cyclone data with caching (TTL: 1 hour)
   const fetchCycloneData = useCallback(async (forecastFile: string): Promise<GeoJSONData | null> => {
     const cacheKey = `cyclone:${forecastFile}`;
-    const cached = apiCache.get<GeoJSONData>(cacheKey, 'cyclone');
+    const cached = apiCache.get<GeoJSONData>(cacheKey, "cyclone");
     if (cached) return cached;
 
     try {
@@ -123,7 +134,7 @@ const AfricaMap = ({
         apiCache.set(cacheKey, data);
         return data;
       }
-      const demoResponse = await fetch('/data/geojson/cyclones.geojson');
+      const demoResponse = await fetch("/data/geojson/cyclones.geojson");
       if (demoResponse.ok) {
         const data = await demoResponse.json();
         apiCache.set(cacheKey, data);
@@ -131,25 +142,25 @@ const AfricaMap = ({
       }
       return null;
     } catch (e) {
-      console.error('Error fetching cyclone data:', e);
+      console.error("Error fetching cyclone data:", e);
       return null;
     }
   }, []);
 
   // Fetch outbreak data with caching (TTL: 30 minutes)
   const fetchOutbreakData = useCallback(async (): Promise<GeoJSONData | null> => {
-    const cacheKey = 'outbreak:who-afro';
-    const cached = apiCache.get<GeoJSONData>(cacheKey, 'outbreak');
+    const cacheKey = "outbreak:who-afro";
+    const cached = apiCache.get<GeoJSONData>(cacheKey, "outbreak");
     if (cached) return cached;
 
     try {
-      const response = await fetch('/data/geojson/who_outbreaks.geojson');
+      const response = await fetch("/data/geojson/who_outbreaks.geojson");
       if (response.ok) {
         const data = await response.json();
         apiCache.set(cacheKey, data);
         return data;
       }
-      const demoResponse = await fetch('/data/geojson/outbreaks.geojson');
+      const demoResponse = await fetch("/data/geojson/outbreaks.geojson");
       if (demoResponse.ok) {
         const data = await demoResponse.json();
         apiCache.set(cacheKey, data);
@@ -157,65 +168,62 @@ const AfricaMap = ({
       }
       return null;
     } catch (e) {
-      console.error('Error fetching outbreak data:', e);
+      console.error("Error fetching outbreak data:", e);
       return null;
     }
   }, []);
 
   // Calculate convergence zones
-  const detectConvergences = (
-    cyclones: GeoJSONData | null,
-    outbreaks: GeoJSONData | null
-  ): ConvergenceZone[] => {
+  const detectConvergences = (cyclones: GeoJSONData | null, outbreaks: GeoJSONData | null): ConvergenceZone[] => {
     if (!cyclones?.features?.length || !outbreaks?.features?.length) return [];
 
     const convergences: ConvergenceZone[] = [];
     const distanceThresholdKm = 500;
 
     cyclones.features.forEach((cyclone, cIdx) => {
-      if (cyclone.geometry.type !== 'Point') return;
+      if (cyclone.geometry.type !== "Point") return;
 
       const cCoords = cyclone.geometry.coordinates;
 
       outbreaks.features.forEach((outbreak, oIdx) => {
-        if (outbreak.geometry.type !== 'Point') return;
+        if (outbreak.geometry.type !== "Point") return;
 
         const oCoords = outbreak.geometry.coordinates;
 
         // Calculate distance using Haversine formula
         const distance = calculateDistance(
-          cCoords[1], cCoords[0], // cyclone lat, lon
-          oCoords[1], oCoords[0]  // outbreak lat, lon
+          cCoords[1],
+          cCoords[0], // cyclone lat, lon
+          oCoords[1],
+          oCoords[0], // outbreak lat, lon
         );
 
         if (distance < distanceThresholdKm) {
-          const cProps = cyclone.properties as CycloneFeature['properties'];
-          const oProps = outbreak.properties as OutbreakFeature['properties'];
+          const cProps = cyclone.properties as CycloneFeature["properties"];
+          const oProps = outbreak.properties as OutbreakFeature["properties"];
 
           // Calculate risk score (same algorithm as pipeline)
-          const distanceFactor = Math.max(0, 1 - (distance / 500));
+          const distanceFactor = Math.max(0, 1 - distance / 500);
           const severityScores: Record<string, number> = { low: 0.2, medium: 0.5, high: 0.8 };
           const severityFactor = severityScores[oProps.severity] || 0.5;
           const probabilityFactor = cProps.track_probability || 0;
           const casesFactor = Math.min(1.0, oProps.cases / 200);
 
-          const riskScore = Math.round(
-            (distanceFactor * 0.3 +
-              severityFactor * 0.3 +
-              probabilityFactor * 0.2 +
-              casesFactor * 0.2) * 1000
-          ) / 1000;
+          const riskScore =
+            Math.round(
+              (distanceFactor * 0.3 + severityFactor * 0.3 + probabilityFactor * 0.2 + casesFactor * 0.2) * 1000,
+            ) / 1000;
 
           convergences.push({
             id: `conv-${cIdx}-${oIdx}`,
             outbreak: oProps,
             cyclone: {
               ...cProps,
-              location: { lat: cCoords[1], lon: cCoords[0] }
+              location: { lat: cCoords[1], lon: cCoords[0] },
             },
             distance_km: Math.round(distance * 10) / 10,
             risk_score: riskScore,
-            alert_priority: distance < 200 ? 'HIGH' : 'MEDIUM'
+            alert_priority: distance < 200 ? "HIGH" : "MEDIUM",
           });
         }
       });
@@ -227,149 +235,189 @@ const AfricaMap = ({
   // Haversine distance calculation
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
     const R = 6371; // Earth's radius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
 
   // Layer Initialization Logic
-  const initializeLayers = useCallback((map: mapboxgl.Map) => {
-    console.log('Initializing layers for style:', map.getStyle().name);
+  const initializeLayers = useCallback(
+    (map: mapboxgl.Map) => {
+      console.log("Initializing layers for style:", map.getStyle().name);
 
-    // Add Terrain (if not exists)
-    try {
-      if (!map.getSource('mapbox-dem')) {
-        map.addSource('mapbox-dem', {
-          type: 'raster-dem',
-          url: 'mapbox://mapbox.mapbox-terrain-dem-v1',
-          tileSize: 512,
-          maxzoom: 14
-        });
-        map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.5 });
+      // Add Terrain (if not exists)
+      try {
+        if (!map.getSource("mapbox-dem")) {
+          map.addSource("mapbox-dem", {
+            type: "raster-dem",
+            url: "mapbox://mapbox.mapbox-terrain-dem-v1",
+            tileSize: 512,
+            maxzoom: 14,
+          });
+          map.setTerrain({ source: "mapbox-dem", exaggeration: 1.5 });
+        }
+      } catch (e) {
+        console.warn("Terrain setup:", e); // Ignore if already exists
       }
-    } catch (e) {
-      console.warn('Terrain setup:', e); // Ignore if already exists
-    }
 
-    // Add Wind Source (if not exists)
-    try {
-      if (!map.getSource('raster-array-source')) {
-        map.addSource('raster-array-source', {
-          type: 'raster-array',
-          url: 'mapbox://rasterarrayexamples.gfs-winds',
-          tileSize: 400
-        });
+      // Add Wind Source (if not exists)
+      try {
+        if (!map.getSource("raster-array-source")) {
+          map.addSource("raster-array-source", {
+            type: "raster-array",
+            url: "mapbox://rasterarrayexamples.gfs-winds",
+            tileSize: 400,
+          });
+        }
+      } catch (e) {
+        console.warn("Wind source setup:", e);
       }
-    } catch (e) {
-      console.warn('Wind source setup:', e);
-    }
 
-    // Wind Layer
-    try {
-      if (!map.getLayer('wind-layer')) {
-        map.addLayer({
-          id: 'wind-layer',
-          type: 'raster-particle',
-          source: 'raster-array-source',
-          'source-layer': '10winds',
-        paint: {
-            'raster-particle-speed-factor': 0.4,
-            'raster-particle-fade-opacity-factor': 0.9,
-            'raster-particle-reset-rate-factor': 0.4,
-            'raster-particle-count': 4000,
-            'raster-particle-max-speed': 40,
-            'raster-particle-color': [
-              'interpolate',
-              ['linear'],
-              ['raster-particle-speed'],
-              0, 'rgba(98, 113, 183, 0.8)',    // Light blue (calm)
-              5, 'rgba(57, 181, 74, 0.85)',    // Green (light breeze)
-              10, 'rgba(255, 255, 0, 0.9)',    // Yellow (moderate)
-              15, 'rgba(255, 170, 0, 0.9)',    // Orange (fresh)
-              20, 'rgba(255, 85, 0, 0.95)',    // Red-orange (strong)
-              25, 'rgba(255, 0, 0, 1)',        // Red (gale)
-              30, 'rgba(180, 0, 100, 1)',      // Magenta (storm)
-              40, 'rgba(128, 0, 128, 1)'       // Purple (hurricane)
-            ]
+      // Wind Layer
+      try {
+        if (!map.getLayer("wind-layer")) {
+          map.addLayer({
+            id: "wind-layer",
+            type: "raster-particle",
+            source: "raster-array-source",
+            "source-layer": "10winds",
+            paint: {
+              "raster-particle-speed-factor": 0.4,
+              "raster-particle-fade-opacity-factor": 0.9,
+              "raster-particle-reset-rate-factor": 0.4,
+              "raster-particle-count": 4000,
+              "raster-particle-max-speed": 40,
+              "raster-particle-color": [
+                "interpolate",
+                ["linear"],
+                ["raster-particle-speed"],
+                0,
+                "rgba(98, 113, 183, 0.8)", // Light blue (calm)
+                5,
+                "rgba(57, 181, 74, 0.85)", // Green (light breeze)
+                10,
+                "rgba(255, 255, 0, 0.9)", // Yellow (moderate)
+                15,
+                "rgba(255, 170, 0, 0.9)", // Orange (fresh)
+                20,
+                "rgba(255, 85, 0, 0.95)", // Red-orange (strong)
+                25,
+                "rgba(255, 0, 0, 1)", // Red (gale)
+                30,
+                "rgba(180, 0, 100, 1)", // Magenta (storm)
+                40,
+                "rgba(128, 0, 128, 1)", // Purple (hurricane)
+              ],
+            },
+          });
+        }
+      } catch (e) {
+        console.warn("Wind layer setup:", e);
+      }
+
+      // Note: Earth Thermal Layer removed - single wind particle layer now used
+
+      // Trigger existing data update logic
+      // We do this by triggering the effects relying on data state
+      // but the sources might need to be re-added first if they were cleared by style change.
+      // The data useEffects handle source addition, so we just need to ensure they run or the sources are ready.
+      // Actually, when style changes, sources are gone. We need to let the data-effects re-add them.
+      // We can signal a "styleLoaded" state or just let the data effects run?
+      // The data effects have `if (!map) return`. They check `if (source) setData else addSource`.
+      // So if style change wipes sources, the data effects will re-add them IF they run.
+      // We might need to force them to run or simpler: just re-add the data sources here if we have data.
+
+      if (cycloneData) {
+        try {
+          if (!map.getSource("cyclones-source")) {
+            map.addSource("cyclones-source", { type: "geojson", data: cycloneData as any });
           }
-        });
+          if (!map.getLayer("cyclones-layer")) {
+            map.addLayer({
+              id: "cyclones-layer",
+              type: "circle",
+              source: "cyclones-source",
+              paint: {
+                "circle-radius": ["interpolate", ["linear"], ["get", "track_probability"], 0, 8, 0.5, 15, 1.0, 25],
+                "circle-color": [
+                  "match",
+                  ["get", "threat_level"],
+                  "HURRICANE",
+                  "#dc2626",
+                  "STRONG_TROPICAL_STORM",
+                  "#ea580c",
+                  "TROPICAL_STORM",
+                  "#f59e0b",
+                  "TROPICAL_DEPRESSION",
+                  "#fbbf24",
+                  "#9ca3af",
+                ],
+                "circle-opacity": 0.7,
+                "circle-stroke-width": 2,
+                "circle-stroke-color": "#ffffff",
+                "circle-stroke-opacity": 0.8,
+              },
+            });
+            // Re-add interactivity
+            map.on("click", "cyclones-layer", (e) => {
+              /* ... popup logic ... */
+            });
+            map.on("mouseenter", "cyclones-layer", () => (map.getCanvas().style.cursor = "pointer"));
+            map.on("mouseleave", "cyclones-layer", () => (map.getCanvas().style.cursor = ""));
+          }
+        } catch (e) {
+          console.warn("Cyclone layer re-add:", e);
+        }
       }
-    } catch (e) {
-      console.warn('Wind layer setup:', e);
-    }
 
-    // Note: Earth Thermal Layer removed - single wind particle layer now used
-
-    // Trigger existing data update logic
-    // We do this by triggering the effects relying on data state
-    // but the sources might need to be re-added first if they were cleared by style change.
-    // The data useEffects handle source addition, so we just need to ensure they run or the sources are ready.
-    // Actually, when style changes, sources are gone. We need to let the data-effects re-add them.
-    // We can signal a "styleLoaded" state or just let the data effects run?
-    // The data effects have `if (!map) return`. They check `if (source) setData else addSource`.
-    // So if style change wipes sources, the data effects will re-add them IF they run.
-    // We might need to force them to run or simpler: just re-add the data sources here if we have data.
-
-    if (cycloneData) {
-      try {
-        if (!map.getSource('cyclones-source')) {
-          map.addSource('cyclones-source', { type: 'geojson', data: cycloneData as any });
+      if (outbreakData) {
+        try {
+          if (!map.getSource("outbreaks-source")) {
+            map.addSource("outbreaks-source", { type: "geojson", data: outbreakData as any });
+          }
+          if (!map.getLayer("outbreaks-layer")) {
+            map.addLayer({
+              id: "outbreaks-layer",
+              type: "circle",
+              source: "outbreaks-source",
+              paint: {
+                "circle-radius": ["interpolate", ["linear"], ["get", "cases"], 0, 8, 50, 15, 100, 22, 200, 30],
+                "circle-color": [
+                  "match",
+                  ["get", "severity"],
+                  "high",
+                  "#dc2626",
+                  "medium",
+                  "#f97316",
+                  "low",
+                  "#eab308",
+                  "#3b82f6",
+                ],
+                "circle-stroke-width": 2,
+                "circle-stroke-color": "#ffffff",
+                "circle-opacity": 0.85,
+              },
+            });
+            // Re-add interactivity
+            map.on("click", "outbreaks-layer", (e) => {
+              /* ... popup logic ... */
+            });
+            map.on("mouseenter", "outbreaks-layer", () => (map.getCanvas().style.cursor = "pointer"));
+            map.on("mouseleave", "outbreaks-layer", () => (map.getCanvas().style.cursor = ""));
+          }
+        } catch (e) {
+          console.warn("Outbreak layer re-add:", e);
         }
-        if (!map.getLayer('cyclones-layer')) {
-          map.addLayer({
-            id: 'cyclones-layer',
-            type: 'circle',
-            source: 'cyclones-source',
-            paint: {
-              'circle-radius': ['interpolate', ['linear'], ['get', 'track_probability'], 0, 8, 0.5, 15, 1.0, 25],
-              'circle-color': ['match', ['get', 'threat_level'], 'HURRICANE', '#dc2626', 'STRONG_TROPICAL_STORM', '#ea580c', 'TROPICAL_STORM', '#f59e0b', 'TROPICAL_DEPRESSION', '#fbbf24', '#9ca3af'],
-              'circle-opacity': 0.7,
-              'circle-stroke-width': 2,
-              'circle-stroke-color': '#ffffff',
-              'circle-stroke-opacity': 0.8
-            }
-          });
-          // Re-add interactivity
-          map.on('click', 'cyclones-layer', (e) => { /* ... popup logic ... */ });
-          map.on('mouseenter', 'cyclones-layer', () => map.getCanvas().style.cursor = 'pointer');
-          map.on('mouseleave', 'cyclones-layer', () => map.getCanvas().style.cursor = '');
-        }
-      } catch (e) { console.warn('Cyclone layer re-add:', e); }
-    }
+      }
 
-    if (outbreakData) {
-      try {
-        if (!map.getSource('outbreaks-source')) {
-          map.addSource('outbreaks-source', { type: 'geojson', data: outbreakData as any });
-        }
-        if (!map.getLayer('outbreaks-layer')) {
-          map.addLayer({
-            id: 'outbreaks-layer',
-            type: 'circle',
-            source: 'outbreaks-source',
-            paint: {
-              'circle-radius': ['interpolate', ['linear'], ['get', 'cases'], 0, 8, 50, 15, 100, 22, 200, 30],
-              'circle-color': ['match', ['get', 'severity'], 'high', '#dc2626', 'medium', '#f97316', 'low', '#eab308', '#3b82f6'],
-              'circle-stroke-width': 2,
-              'circle-stroke-color': '#ffffff',
-              'circle-opacity': 0.85
-            }
-          });
-          // Re-add interactivity
-          map.on('click', 'outbreaks-layer', (e) => { /* ... popup logic ... */ });
-          map.on('mouseenter', 'outbreaks-layer', () => map.getCanvas().style.cursor = 'pointer');
-          map.on('mouseleave', 'outbreaks-layer', () => map.getCanvas().style.cursor = '');
-        }
-      } catch (e) { console.warn('Outbreak layer re-add:', e); }
-    }
-
-    // Convergence lines will be re-added by their useEffect if convergences exist
-  }, [cycloneData, outbreakData]);
+      // Convergence lines will be re-added by their useEffect if convergences exist
+    },
+    [cycloneData, outbreakData],
+  );
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -384,12 +432,12 @@ const AfricaMap = ({
       style: activeStyle, // Use prop
       center: [25, 0],
       zoom: 3,
-      projection: 'mercator',
-      antialias: true
+      projection: "mercator",
+      antialias: true,
     });
 
-    map.on('load', () => {
-      console.log('Map loaded');
+    map.on("load", () => {
+      console.log("Map loaded");
       mapRef.current = map;
       onMapLoad?.(map);
       initializeLayers(map);
@@ -401,7 +449,7 @@ const AfricaMap = ({
           setForecastFiles(forecasts);
           if (outbreaks) setOutbreakData(outbreaks);
           if (forecasts.length > 0) {
-            return fetchCycloneData(forecasts[0].file).then(data => {
+            return fetchCycloneData(forecasts[0].file).then((data) => {
               if (data) {
                 setCycloneData(data);
                 setLastUpdated(data.metadata?.init_time || new Date().toISOString());
@@ -413,11 +461,11 @@ const AfricaMap = ({
     });
 
     // Handle Style Changes
-    map.on('styledata', () => {
+    map.on("styledata", () => {
       // This fires whenever style changes. We ensure layers are present.
       // But we must be careful not to infinite loop or add duplicate layers if they persist.
       // Mapbox wipes layers on style change, so checking layer existence is safe.
-      // initializeLayers(map); 
+      // initializeLayers(map);
       // NOTE: we will use a separate useEffect for style switching to be cleaner
     });
 
@@ -431,9 +479,9 @@ const AfricaMap = ({
   useEffect(() => {
     const map = mapRef.current;
     if (map && activeStyle && map.getStyle().sprite !== activeStyle) {
-      console.log('Switching style to:', activeStyle);
+      console.log("Switching style to:", activeStyle);
       map.setStyle(activeStyle);
-      map.once('styledata', () => {
+      map.once("styledata", () => {
         initializeLayers(map);
       });
     }
@@ -455,9 +503,8 @@ const AfricaMap = ({
   // Let's stop here and do the actual replacement with precise lines.
   // The above block was pseudocode/explanation.
 
-
   // Get critical convergences for display
-  const criticalConvergences = convergences.filter(c => c.alert_priority === 'HIGH');
+  const criticalConvergences = convergences.filter((c) => c.alert_priority === "HIGH");
 
   return (
     <div ref={mapContainer} className="w-full h-full absolute inset-0">
@@ -475,9 +522,7 @@ const AfricaMap = ({
       <div className="absolute left-6 bottom-6 bg-black/60 backdrop-blur-xl border border-white/10 rounded-2xl p-4 z-10">
         <div className="flex items-center gap-3 mb-2">
           <Clock className="w-4 h-4 text-blue-400" />
-          <span className="text-xs font-bold uppercase tracking-wider text-white/60">
-            FNV3 Forecast
-          </span>
+          <span className="text-xs font-bold uppercase tracking-wider text-white/60">FNV3 Forecast</span>
         </div>
         <div className="flex items-center gap-4">
           <input
@@ -489,9 +534,7 @@ const AfricaMap = ({
             onChange={(e) => setSelectedForecastHour(Number(e.target.value))}
             className="w-48 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-red-500"
           />
-          <span className="text-sm font-bold text-white min-w-[60px]">
-            T+{selectedForecastHour}h
-          </span>
+          <span className="text-sm font-bold text-white min-w-[60px]">T+{selectedForecastHour}h</span>
         </div>
         <div className="flex justify-between mt-1 text-[10px] text-white/40">
           <span>Now</span>
@@ -506,11 +549,12 @@ const AfricaMap = ({
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
             <span className="text-xs text-white/70">
-              Updated: {new Date(lastUpdated).toLocaleString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
+              Updated:{" "}
+              {new Date(lastUpdated).toLocaleString("en-US", {
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
               })}
             </span>
           </div>
@@ -521,10 +565,12 @@ const AfricaMap = ({
       <WindSpeedLegend />
 
       {/* Situation Intel Sidebar */}
-      <div className={cn(
-        "absolute right-6 top-6 bottom-6 w-96 bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl z-10 transition-all duration-500 flex flex-col overflow-hidden",
-        intelPanelOpen ? "translate-x-0 opacity-100" : "translate-x-[calc(100%+24px)] opacity-0"
-      )}>
+      <div
+        className={cn(
+          "absolute right-6 top-6 bottom-6 w-96 bg-black/60 backdrop-blur-xl border border-white/10 rounded-3xl z-10 transition-all duration-500 flex flex-col overflow-hidden",
+          intelPanelOpen ? "translate-x-0 opacity-100" : "translate-x-[calc(100%+24px)] opacity-0",
+        )}
+      >
         {/* Header */}
         <div className="p-6 border-b border-white/5 bg-white/5 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -533,7 +579,9 @@ const AfricaMap = ({
             </div>
             <div>
               <h2 className="text-lg font-bold tracking-tight text-white">Situation Room</h2>
-              <p className="text-[10px] uppercase tracking-widest text-white/40 font-semibold">Live Intel • Region Afro</p>
+              <p className="text-[10px] uppercase tracking-widest text-white/40 font-semibold">
+                Live Intel • Region Afro
+              </p>
             </div>
           </div>
           <button
@@ -558,20 +606,28 @@ const AfricaMap = ({
             <p className="text-sm leading-relaxed text-white/90">
               {convergences.length > 0 ? (
                 <>
-                  Detected <span className="text-red-400 font-bold">{convergences.length} convergence zone{convergences.length > 1 ? 's' : ''}</span> requiring attention.
+                  Detected{" "}
+                  <span className="text-red-400 font-bold">
+                    {convergences.length} convergence zone{convergences.length > 1 ? "s" : ""}
+                  </span>{" "}
+                  requiring attention.
                   {criticalConvergences.length > 0 && (
-                    <> <span className="text-orange-400 font-bold">{criticalConvergences.length} critical</span> priority.</>
+                    <>
+                      {" "}
+                      <span className="text-orange-400 font-bold">{criticalConvergences.length} critical</span>{" "}
+                      priority.
+                    </>
                   )}
                 </>
               ) : (
-                'No active convergence zones detected. Monitoring {activeDetections.outbreaks} outbreaks and {activeDetections.cyclones} cyclone systems.'
+                "No active convergence zones detected. Monitoring {activeDetections.outbreaks} outbreaks and {activeDetections.cyclones} cyclone systems."
               )}
             </p>
             {convergences.length > 0 && (
               <div className="mt-3 flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-red-400" />
                 <span className="text-xs text-red-400">
-                  Max Risk Score: {Math.max(...convergences.map(c => c.risk_score)).toFixed(2)}
+                  Max Risk Score: {Math.max(...convergences.map((c) => c.risk_score)).toFixed(2)}
                 </span>
               </div>
             )}
@@ -609,35 +665,38 @@ const AfricaMap = ({
                   key={conv.id}
                   className={cn(
                     "p-4 border rounded-2xl flex gap-4 transition-all hover:bg-white/5",
-                    conv.alert_priority === 'HIGH'
+                    conv.alert_priority === "HIGH"
                       ? "bg-red-500/10 border-red-500/20"
-                      : "bg-orange-500/10 border-orange-500/20"
+                      : "bg-orange-500/10 border-orange-500/20",
                   )}
                 >
-                  <div className={cn(
-                    "p-2 h-fit rounded-lg",
-                    conv.alert_priority === 'HIGH' ? "bg-red-500/20" : "bg-orange-500/20"
-                  )}>
-                    <AlertTriangle className={cn(
-                      "w-5 h-5",
-                      conv.alert_priority === 'HIGH' ? "text-red-500" : "text-orange-500"
-                    )} />
+                  <div
+                    className={cn(
+                      "p-2 h-fit rounded-lg",
+                      conv.alert_priority === "HIGH" ? "bg-red-500/20" : "bg-orange-500/20",
+                    )}
+                  >
+                    <AlertTriangle
+                      className={cn("w-5 h-5", conv.alert_priority === "HIGH" ? "text-red-500" : "text-orange-500")}
+                    />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between">
                       <h4 className="text-sm font-bold text-white">{conv.outbreak.location}</h4>
-                      <span className={cn(
-                        "text-[10px] uppercase font-bold px-2 py-0.5 rounded",
-                        conv.alert_priority === 'HIGH'
-                          ? "bg-red-500/20 text-red-400"
-                          : "bg-orange-500/20 text-orange-400"
-                      )}>
+                      <span
+                        className={cn(
+                          "text-[10px] uppercase font-bold px-2 py-0.5 rounded",
+                          conv.alert_priority === "HIGH"
+                            ? "bg-red-500/20 text-red-400"
+                            : "bg-orange-500/20 text-orange-400",
+                        )}
+                      >
                         {conv.alert_priority}
                       </span>
                     </div>
                     <p className="text-xs text-white/60 mt-1">
-                      {conv.outbreak.disease} outbreak ({conv.outbreak.cases} cases)
-                      threatened by {conv.cyclone.threat_level.replace(/_/g, ' ').toLowerCase()}
+                      {conv.outbreak.disease} outbreak ({conv.outbreak.cases} cases) threatened by{" "}
+                      {conv.cyclone.threat_level.replace(/_/g, " ").toLowerCase()}
                     </p>
                     <div className="mt-2 flex items-center gap-4 text-[10px] text-white/40">
                       <span className="flex items-center gap-1">
@@ -660,13 +719,11 @@ const AfricaMap = ({
             <div className="space-y-3">
               <h3 className="text-xs font-bold text-white/40 uppercase px-1">Active Cyclone Systems</h3>
               {cycloneData.features.slice(0, 3).map((feature, idx) => {
-                const props = feature.properties as CycloneFeature['properties'];
+                const props = feature.properties as CycloneFeature["properties"];
                 return (
                   <div key={idx} className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-xl">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-white">
-                        {props.threat_level.replace(/_/g, ' ')}
-                      </span>
+                      <span className="text-sm font-medium text-white">{props.threat_level.replace(/_/g, " ")}</span>
                       <span className="text-xs text-blue-400">
                         {(props.track_probability * 100).toFixed(0)}% probability
                       </span>
@@ -685,17 +742,21 @@ const AfricaMap = ({
             <div className="space-y-3">
               <h3 className="text-xs font-bold text-white/40 uppercase px-1">Disease Outbreaks</h3>
               {outbreakData.features.slice(0, 3).map((feature, idx) => {
-                const props = feature.properties as OutbreakFeature['properties'];
+                const props = feature.properties as OutbreakFeature["properties"];
                 return (
                   <div key={idx} className="p-3 bg-red-500/5 border border-red-500/10 rounded-xl">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-white">{props.disease}</span>
-                      <span className={cn(
-                        "text-[10px] uppercase px-2 py-0.5 rounded",
-                        props.severity === 'high' ? "bg-red-500/20 text-red-400" :
-                          props.severity === 'medium' ? "bg-orange-500/20 text-orange-400" :
-                            "bg-yellow-500/20 text-yellow-400"
-                      )}>
+                      <span
+                        className={cn(
+                          "text-[10px] uppercase px-2 py-0.5 rounded",
+                          props.severity === "high"
+                            ? "bg-red-500/20 text-red-400"
+                            : props.severity === "medium"
+                              ? "bg-orange-500/20 text-orange-400"
+                              : "bg-yellow-500/20 text-yellow-400",
+                        )}
+                      >
                         {props.severity}
                       </span>
                     </div>
@@ -711,9 +772,7 @@ const AfricaMap = ({
 
         {/* Footer */}
         <div className="p-4 border-t border-white/5 mt-auto space-y-2">
-          <div className="text-[10px] text-white/30 text-center">
-            AFRO Storm Intelligence Pipeline v1.0
-          </div>
+          <div className="text-[10px] text-white/30 text-center">AFRO Storm Intelligence Pipeline v1.0</div>
           <button className="w-full py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-bold uppercase tracking-widest transition-all shadow-lg shadow-red-600/20">
             Export Intelligence Brief
           </button>
@@ -721,11 +780,7 @@ const AfricaMap = ({
       </div>
 
       {/* Weather Icon Card - Sleek thin card with icons only */}
-      <WeatherIconCard
-        map={mapRef.current}
-        activeStyle={activeStyle}
-        onStyleChange={onStyleChange}
-      />
+      <WeatherIconCard map={mapRef.current} activeStyle={activeStyle} onStyleChange={onStyleChange} />
 
       {/* Toggle Button (when closed) */}
       {!intelPanelOpen && (
