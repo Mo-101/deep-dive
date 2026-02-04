@@ -1,18 +1,42 @@
+# AFRO Storm Development Plan
 
-# Plan: Fix Build Errors, Simplify Map Layers & Add Wind Colorbar
+## Status: ✅ Real-time Event Tracking Implemented
 
-## Status: ✅ COMPLETED
+## Latest Updates (Feb 4, 2026)
 
-## Summary of Changes Made
+### Completed
+1. ✅ **Realtime subscriptions** - Live database change detection
+2. ✅ **Hotspot markers** - Database events displayed on map
+3. ✅ **Status indicators** - Connection status + event feed
+4. ✅ **Wind particle layer** - Professional meteorological colorbar
 
-### 1. ✅ Fixed GridConsciousness.tsx Build Error
-- Converted Python docstring `"""..."""` to TypeScript JSDoc `/** ... */`
+### Database Contents
+- 1 forecast (Google DeepMind FNV3)
+- 3 cyclone tracks (IO, SH basins)
+- 4 hotspots with probability data
+- 1 active alert
 
-### 2. ✅ Simplified Map Layers
-- Removed Earth Thermal heatmap layer (was dependent on localhost:9000 backend)
-- Kept single wind particle layer with professional colorbar
+### Architecture
+```
+Frontend (React/Mapbox)
+    ↓
+useRealtimeEvents hook ←→ Supabase Realtime (postgres_changes)
+    ↓
+useForecastData hooks → Edge Function API (forecast-api)
+    ↓
+PostgreSQL + PostGIS Database
+```
 
-### 3. ✅ Updated Wind Layer Colors (Standard Meteorological)
+### Files Added/Modified
+- `src/hooks/useRealtimeEvents.ts` - Realtime subscription hook
+- `src/components/map/HotspotMarkers.tsx` - Map layer for DB hotspots
+- `src/pages/Index.tsx` - Integrated realtime status + markers
+
+---
+
+## Previous: Wind Layer Simplification
+
+### Wind Color Scale (Standard Meteorological)
 - 0 m/s: Light blue (calm)
 - 5 m/s: Green (light breeze)
 - 10 m/s: Yellow (moderate)
@@ -22,19 +46,10 @@
 - 30 m/s: Magenta (storm)
 - 40 m/s: Purple (hurricane)
 
-### 4. ✅ Added Wind Speed Legend Component
-- Created `src/components/map/WindSpeedLegend.tsx`
-- Professional gradient colorbar with speed labels
-- Positioned bottom-left of map
+---
 
-### 5. ✅ Fixed Other Build Errors
-- Fixed duplicate export in `src/components/weather/index.ts`
-- Fixed invalid `canvas` source type in `PrecipitationRadarLayer.tsx` (changed to `image`)
-
-## Files Modified
-- `src/components/mostar-grid/GridConsciousness.tsx` - Fixed docstring
-- `src/components/map/AfricaMap.tsx` - Updated wind colors, removed earth-thermal, added legend
-- `src/components/map/WindSpeedLegend.tsx` - New component
-- `src/components/map/index.ts` - Added WindSpeedLegend export
-- `src/components/weather/index.ts` - Fixed duplicate export
-- `src/components/map/PrecipitationRadarLayer.tsx` - Fixed canvas source type
+## Next Steps
+1. Integrate WHO health outbreak data
+2. Add convergence zone detection
+3. Implement SMS alerts (Twilio/Africa's Talking)
+4. Pipeline integration for automated data ingestion
