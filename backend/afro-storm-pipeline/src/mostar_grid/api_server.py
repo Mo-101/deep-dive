@@ -50,8 +50,13 @@ ecmwf_fetcher = ECMWFFetcher()
 tempest = TempestPipeline(tempest_bin_dir="backend/afro-storm-pipeline/bin") # Adjust bin path as needed
 era5 = ERA5Processor()
 
-# Include ECMWF routes
+# Include routers
+from ..api.validation_routes import router as validation_router
+from ..api.hazards_routes import router as hazards_router
+
 app.include_router(ecmwf_router, prefix="/api/v1")
+app.include_router(validation_router, prefix="/api/v1")
+app.include_router(hazards_router, prefix="/api/v1")
 
 # Request/Response Models
 class CycloneData(BaseModel):

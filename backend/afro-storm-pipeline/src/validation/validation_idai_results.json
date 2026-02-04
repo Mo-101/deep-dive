@@ -1,0 +1,12 @@
+{
+  "simulation": true,
+  "first_detection": "2019-03-09T06:00:00",
+  "landfall_time": "2019-03-14T21:00:00",
+  "lead_time_hours": 135.0,
+  "would_have_warned_72h": true,
+  "would_have_warned_48h": true,
+  "would_have_warned_24h": true,
+  "estimated_position_error_km": 100,
+  "estimated_intensity_error_kt": 15,
+  "confidence": "Based on TempestExtremes published performance"
+}

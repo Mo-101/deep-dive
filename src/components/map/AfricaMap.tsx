@@ -14,8 +14,9 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { WindSpeedLegend } from "./WindSpeedLegend";
+import { WeatherAnimationController } from "./weather-animations";
+import { MapProvider, useMap } from "@/hooks/useMap";
 import { cn } from "@/lib/utils";
-import { WeatherIconCard } from "./WeatherIconCard";
 import { apiCache, cachedFetch } from "@/lib/api-cache";
 
 interface AfricaMapProps {
@@ -88,13 +89,14 @@ interface FNV3Forecast {
   data?: GeoJSONData;
 }
 
-const AfricaMap = ({
+const AfricaMapInner = ({
   onMapLoad,
   activeStyle = "mapbox://styles/akanimo1/cml72h8dv002z01qx4a518c8q",
   onStyleChange,
 }: AfricaMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const { setMap } = useMap();
   const [intelPanelOpen, setIntelPanelOpen] = useState(true);
   const [activeDetections, setActiveDetections] = useState({
     outbreaks: 0,
@@ -103,6 +105,11 @@ const AfricaMap = ({
   });
   const [cycloneData, setCycloneData] = useState<GeoJSONData | null>(null);
   const [outbreakData, setOutbreakData] = useState<GeoJSONData | null>(null);
+  
+  // Debug: Log cycloneData changes
+  useEffect(() => {
+    console.log('[AfricaMap] cycloneData updated:', cycloneData ? `${cycloneData.features.length} features` : 'null');
+  }, [cycloneData]);
   const [convergences, setConvergences] = useState<ConvergenceZone[]>([]);
   const [selectedForecastHour, setSelectedForecastHour] = useState(0);
   const [forecastFiles, setForecastFiles] = useState<FNV3Forecast[]>([]);
@@ -285,6 +292,9 @@ const AfricaMap = ({
             type: "raster-particle",
             source: "raster-array-source",
             "source-layer": "10winds",
+            layout: {
+              visibility: "visible", // Ensure visible by default
+            },
             paint: {
               "raster-particle-speed-factor": 0.4,
               "raster-particle-fade-opacity-factor": 0.9,
@@ -314,6 +324,7 @@ const AfricaMap = ({
               ],
             },
           });
+          console.log("✅ Wind particles layer added and visible");
         }
       } catch (e) {
         console.warn("Wind layer setup:", e);
@@ -439,6 +450,7 @@ const AfricaMap = ({
     map.on("load", () => {
       console.log("Map loaded");
       mapRef.current = map;
+      setMap(map);
       onMapLoad?.(map);
       initializeLayers(map);
 
@@ -472,8 +484,9 @@ const AfricaMap = ({
     return () => {
       map.remove();
       mapRef.current = null;
+      setMap(null);
     };
-  }, []); // Run once
+  }, [setMap]); // Run once
 
   // Style Switching Effect
   useEffect(() => {
@@ -779,8 +792,51 @@ const AfricaMap = ({
         </div>
       </div>
 
-      {/* Weather Icon Card - Sleek thin card with icons only */}
-      <WeatherIconCard map={mapRef.current} activeStyle={activeStyle} onStyleChange={onStyleChange} />
+      {/* Weather layers removed - only wind particles layer active */}
+
+      {/* DEBUG: Test if animations work */}
+      <button
+        onClick={() => {
+          console.log('=== AFRO STORM DEBUG ===');
+          console.log('cycloneData:', cycloneData);
+          console.log('Map loaded:', !!mapRef.current);
+          console.log('Canvas containers:', document.querySelectorAll('canvas').length);
+          
+          // Force create a test canvas
+          const mapContainer = document.querySelector('.mapboxgl-canvas-container');
+          if (mapContainer) {
+            const testCanvas = document.createElement('canvas');
+            testCanvas.className = 'test-debug-canvas';
+            testCanvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;z-index:100;background:rgba(255,0,0,0.3);pointer-events:none';
+            mapContainer.appendChild(testCanvas);
+            console.log('Test canvas added - you should see RED overlay');
+            alert(cycloneData 
+              ? `✓ Data: ${cycloneData.features.length} cyclones found\n✓ Map: Loaded\n✓ Test: Red overlay should appear` 
+              : '✗ No cyclone data - check console');
+          } else {
+            alert('✗ Map container not found');
+          }
+        }}
+        className="absolute bottom-4 right-4 z-50 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg"
+      >
+        🐛 DEBUG: Test Animations
+      </button>
+
+      {/* Weather Animation Layers */}
+      {cycloneData && (
+        <WeatherAnimationController
+          fnv3Cyclones={cycloneData.features
+            .filter((f): f is CycloneFeature => f.geometry.type === "Point")
+            .map(f => ({
+              location: { lat: f.geometry.coordinates[1], lon: f.geometry.coordinates[0] },
+              track_probability: f.properties.track_probability,
+              wind_34kt_probability: f.properties.wind_34kt_probability,
+              wind_50kt_probability: f.properties.wind_50kt_probability || 0,
+              wind_64kt_probability: f.properties.wind_64kt_probability || 0,
+              threat_level: f.properties.threat_level,
+            }))}
+        />
+      )}
 
       {/* Toggle Button (when closed) */}
       {!intelPanelOpen && (
@@ -800,5 +856,12 @@ const AfricaMap = ({
     </div>
   );
 };
+
+// Wrap with MapProvider for weather animation layers
+const AfricaMap = (props: AfricaMapProps) => (
+  <MapProvider>
+    <AfricaMapInner {...props} />
+  </MapProvider>
+);
 
 export default AfricaMap;

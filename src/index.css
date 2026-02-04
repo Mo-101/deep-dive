@@ -197,3 +197,162 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground));
 }
+
+/* Animation styles for Unified Hazard Map */
+
+/* Cyclone pulsing marker */
+.cyclone-marker {
+  position: relative;
+  width: 40px;
+  height: 40px;
+}
+
+.cyclone-pulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  animation: pulse 2s ease-out infinite;
+}
+
+.cyclone-pulse.td,
+.cyclone-pulse.ts {
+  background: rgba(245, 158, 11, 0.4);
+  border: 2px solid rgba(245, 158, 11, 0.8);
+}
+
+.cyclone-pulse.cat1,
+.cyclone-pulse.cat2 {
+  background: rgba(249, 115, 22, 0.4);
+  border: 2px solid rgba(249, 115, 22, 0.8);
+}
+
+.cyclone-pulse.cat3,
+.cyclone-pulse.cat4,
+.cyclone-pulse.cat5 {
+  background: rgba(239, 68, 68, 0.4);
+  border: 2px solid rgba(239, 68, 68, 0.8);
+  animation: pulse 1s ease-out infinite;
+}
+
+.cyclone-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+@keyframes pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2);
+    opacity: 0;
+  }
+}
+
+/* Weather station marker */
+.weather-station {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  border-radius: 8px;
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.weather-station:hover {
+  background: rgba(0, 0, 0, 0.9);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.weather-station img {
+  width: 32px;
+  height: 32px;
+}
+
+.weather-station .temp {
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* News ticker animation */
+@keyframes ticker {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-ticker {
+  animation: ticker 30s linear infinite;
+}
+
+/* Detection popup animation */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+/* Progress bar for auto-dismiss */
+@keyframes progress {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+.animate-progress {
+  animation: progress 10s linear forwards;
+}
+
+/* Flowing flood animation */
+@keyframes flow {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 50px 50px;
+  }
+}
+
+.flood-flowing {
+  background-image: linear-gradient(
+    45deg,
+    rgba(59, 130, 246, 0.4) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(59, 130, 246, 0.4) 50%,
+    rgba(59, 130, 246, 0.4) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 20px 20px;
+  animation: flow 2s linear infinite;
+}

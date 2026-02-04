@@ -1,0 +1,30 @@
+{
+  "simulation": true,
+  "cyclone": "Freddy",
+  "first_landfall": {
+    "location": "Vilankulo",
+    "actual_date": "2023-02-24T12:00:00",
+    "first_detection": "2023-02-07T00:00:00",
+    "lead_time_hours": 420.0,
+    "lead_time_days": 17.5,
+    "72h_warning": true,
+    "48h_warning": true,
+    "24h_warning": true
+  },
+  "second_landfall": {
+    "location": "Quelimane",
+    "actual_date": "2023-03-11T18:00:00",
+    "warning_start": "2023-02-27T00:00:00",
+    "lead_time_hours": 306.0,
+    "lead_time_days": 12.75,
+    "72h_warning": true,
+    "48h_warning": true,
+    "24h_warning": true
+  },
+  "conclusion": {
+    "both_landfalls_warned": true,
+    "max_lead_time_days": 17.5,
+    "lives_at_risk": 1434,
+    "potential_impact": "With 17 days warning for first landfall, mass evacuation possible"
+  }
+}

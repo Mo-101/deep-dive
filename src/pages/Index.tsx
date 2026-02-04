@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import mapboxgl from 'mapbox-gl';
-import AfricaMap from '@/components/map/AfricaMap';
+import { UnifiedHazardMap } from '@/components/map/UnifiedHazardMap';
 import { HotspotMarkers } from '@/components/map/HotspotMarkers';
 import ThreatBar from '@/components/header/ThreatBar';
 import CommandSidebar from '@/components/sidebar/CommandSidebar';
@@ -162,11 +162,7 @@ const Index = () => {
 
       {/* Main Map */}
       <div className="relative h-[calc(100vh-4rem)]">
-        <AfricaMap
-          onMapLoad={handleMapLoad}
-          activeStyle={activeStyle}
-          onStyleChange={setActiveStyle}
-        />
+        <UnifiedHazardMap />
 
         {/* DB Hotspot Markers */}
         <HotspotMarkers

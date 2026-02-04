@@ -1,0 +1,18 @@
+# Frontend .dockerignore
+node_modules
+dist
+.git
+.gitignore
+*.md
+.env*
+.vscode
+.idea
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+backend/
+*.test.*
+*.spec.*
+coverage/
+.nyc_output/
