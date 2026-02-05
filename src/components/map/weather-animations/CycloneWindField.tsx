@@ -93,6 +93,23 @@ function generateEyeWallParticles(
   return particles;
 }
 
+// Memoize static functions outside component to prevent re-renders
+const categoryColors: Record<string, string> = {
+  'TD': 'rgba(100, 200, 255, ',
+  'TS': 'rgba(100, 255, 100, ',
+  'CAT1': 'rgba(255, 255, 100, ',
+  'CAT2': 'rgba(255, 200, 50, ',
+  'CAT3': 'rgba(255, 150, 50, ',
+  'CAT4': 'rgba(255, 100, 50, ',
+  'CAT5': 'rgba(255, 50, 100, ',
+};
+
+function getWindColor(speed: number, category: string): string {
+  const baseColor = categoryColors[category] || categoryColors['TS'];
+  const alpha = Math.min(0.3 + speed / 50, 0.9);
+  return baseColor + alpha + ')';
+}
+
 export function CycloneWindField({
   map,
   cyclones,
@@ -104,9 +121,17 @@ export function CycloneWindField({
   const animationRef = useRef<number | null>(null);
   const windFieldsRef = useRef<Map<string, ReturnType<typeof generateCycloneWindField>>>(new Map());
   const eyeWallsRef = useRef<Map<string, ReturnType<typeof generateEyeWallParticles>>>(new Map());
+  const isActiveRef = useRef(isActive);
+  const cyclonesRef = useRef(cyclones);
+
+  // Keep refs updated
+  useEffect(() => {
+    isActiveRef.current = isActive;
+    cyclonesRef.current = cyclones;
+  }, [isActive, cyclones]);
 
   // Generate wind fields for all cyclones
-  const updateWindFields = useCallback(() => {
+  useEffect(() => {
     windFieldsRef.current.clear();
     eyeWallsRef.current.clear();
 
@@ -123,139 +148,10 @@ export function CycloneWindField({
     });
   }, [cyclones]);
 
-  // Get color based on wind speed and category
-  const getWindColor = useCallback((speed: number, category: string) => {
-    const colors: Record<string, string> = {
-      'TD': 'rgba(100, 200, 255, ',
-      'TS': 'rgba(100, 255, 100, ',
-      'CAT1': 'rgba(255, 255, 100, ',
-      'CAT2': 'rgba(255, 200, 50, ',
-      'CAT3': 'rgba(255, 150, 50, ',
-      'CAT4': 'rgba(255, 100, 50, ',
-      'CAT5': 'rgba(255, 50, 100, ',
-    };
-
-    const baseColor = colors[category] || colors['TS'];
-    const alpha = Math.min(0.3 + speed / 50, 0.9);
-    return baseColor + alpha + ')';
-  }, []);
-
-  // Animation loop
-  const animate = useCallback((time: number) => {
-    if (!map || !canvasRef.current || !isActive) {
-      console.log('[CycloneWindField] Animation stopped - map:', !!map, 'canvas:', !!canvasRef.current, 'isActive:', isActive);
-      return;
-    }
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    // Clear with fade effect
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.globalCompositeOperation = 'lighter';
-
-    cyclones.forEach(cyclone => {
-      const center = map.project([cyclone.center.lon, cyclone.center.lat]);
-
-      // Draw eye wall
-      if (showEyeWall) {
-        const eyeWall = eyeWallsRef.current.get(cyclone.id);
-        if (eyeWall) {
-          ctx.beginPath();
-
-          eyeWall.forEach((particle, i) => {
-            // Rotate particle around center
-            const rotationSpeed = cyclone.maxWindSpeed / 30; // Rotation based on wind speed
-            const currentAngle = particle.angle + (time / 1000) * rotationSpeed;
-
-            const R = 6371;
-            const radius = 30; // Eye wall radius in km
-            const lat = cyclone.center.lat + (radius / R) * (180 / Math.PI) * Math.cos(currentAngle);
-            const lon = cyclone.center.lon + (radius / R) * (180 / Math.PI) * Math.sin(currentAngle) / Math.cos(cyclone.center.lat * Math.PI / 180);
-
-            const point = map.project([lon, lat]);
-
-            if (i === 0) {
-              ctx.moveTo(point.x, point.y);
-            } else {
-              ctx.lineTo(point.x, point.y);
-            }
-          });
-
-          ctx.closePath();
-          ctx.strokeStyle = getWindColor(cyclone.maxWindSpeed, cyclone.category);
-          ctx.lineWidth = 3;
-          ctx.stroke();
-
-          // Draw eye (calm center)
-          ctx.beginPath();
-          ctx.arc(center.x, center.y, 8, 0, 2 * Math.PI);
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-          ctx.fill();
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        }
-      }
-
-      // Draw wind field particles
-      if (showWindField) {
-        const windField = windFieldsRef.current.get(cyclone.id);
-        if (windField) {
-          windField.forEach((wind, i) => {
-            // Animate particles along wind direction
-            const offset = (time / 1000 + i * 0.1) % 1;
-            const moveLat = wind.lat + wind.v * offset * 0.01;
-            const moveLon = wind.lon + wind.u * offset * 0.01;
-
-            const point = map.project([moveLon, moveLat]);
-
-            // Draw particle
-            const size = 1 + wind.speed / 20;
-            ctx.beginPath();
-            ctx.arc(point.x, point.y, size, 0, 2 * Math.PI);
-            ctx.fillStyle = getWindColor(wind.speed, cyclone.category);
-            ctx.fill();
-
-            // Draw velocity vector
-            const vectorScale = 5;
-            ctx.beginPath();
-            ctx.moveTo(point.x, point.y);
-            ctx.lineTo(
-              point.x + wind.u * vectorScale,
-              point.y - wind.v * vectorScale
-            );
-            ctx.strokeStyle = getWindColor(wind.speed, cyclone.category);
-            ctx.lineWidth = 0.5;
-            ctx.stroke();
-          });
-        }
-      }
-
-      // Draw category label
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.font = 'bold 14px Inter, sans-serif';
-      ctx.fillStyle = 'white';
-      ctx.strokeStyle = 'black';
-      ctx.lineWidth = 3;
-      ctx.strokeText(cyclone.category, center.x + 15, center.y - 15);
-      ctx.fillText(cyclone.category, center.x + 15, center.y - 15);
-      ctx.globalCompositeOperation = 'lighter';
-    });
-
-    animationRef.current = requestAnimationFrame((t) => animate(t));
-  }, [map, isActive, cyclones, showWindField, showEyeWall, getWindColor]);
-
   useEffect(() => {
-    if (!map || !isActive) {
-      console.log('[CycloneWindField] Not starting - map:', !!map, 'isActive:', isActive);
+    if (!map || !isActive || cyclones.length === 0) {
       return;
     }
-
-    console.log('[CycloneWindField] Starting with', cyclones.length, 'cyclones');
 
     // Create canvas
     const canvas = document.createElement('canvas');
@@ -278,17 +174,111 @@ export function CycloneWindField({
     resizeCanvas();
     map.getCanvasContainer().appendChild(canvas);
     canvasRef.current = canvas;
-    console.log('[CycloneWindField] Canvas added to map');
 
-    // Generate initial wind fields
-    updateWindFields();
+    // Animation loop - uses refs to avoid dependency changes
+    const animate = (time: number) => {
+      if (!canvasRef.current || !isActiveRef.current) {
+        return;
+      }
 
-    // Start animation
+      const ctx = canvasRef.current.getContext('2d');
+      if (!ctx) return;
+
+      // Clear with fade effect
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+      ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      ctx.globalCompositeOperation = 'lighter';
+
+      cyclonesRef.current.forEach(cyclone => {
+        const center = map.project([cyclone.center.lon, cyclone.center.lat]);
+
+        // Draw eye wall
+        if (showEyeWall) {
+          const eyeWall = eyeWallsRef.current.get(cyclone.id);
+          if (eyeWall) {
+            ctx.beginPath();
+
+            eyeWall.forEach((particle, i) => {
+              const rotationSpeed = cyclone.maxWindSpeed / 30;
+              const currentAngle = particle.angle + (time / 1000) * rotationSpeed;
+
+              const R = 6371;
+              const radius = 30;
+              const lat = cyclone.center.lat + (radius / R) * (180 / Math.PI) * Math.cos(currentAngle);
+              const lon = cyclone.center.lon + (radius / R) * (180 / Math.PI) * Math.sin(currentAngle) / Math.cos(cyclone.center.lat * Math.PI / 180);
+
+              const point = map.project([lon, lat]);
+
+              if (i === 0) {
+                ctx.moveTo(point.x, point.y);
+              } else {
+                ctx.lineTo(point.x, point.y);
+              }
+            });
+
+            ctx.closePath();
+            ctx.strokeStyle = getWindColor(cyclone.maxWindSpeed, cyclone.category);
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Draw eye (calm center)
+            ctx.beginPath();
+            ctx.arc(center.x, center.y, 8, 0, 2 * Math.PI);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
+        }
+
+        // Draw wind field particles
+        if (showWindField) {
+          const windField = windFieldsRef.current.get(cyclone.id);
+          if (windField) {
+            windField.forEach((wind, i) => {
+              const offset = (time / 1000 + i * 0.1) % 1;
+              const moveLat = wind.lat + wind.v * offset * 0.01;
+              const moveLon = wind.lon + wind.u * offset * 0.01;
+
+              const point = map.project([moveLon, moveLat]);
+
+              const size = 1 + wind.speed / 20;
+              ctx.beginPath();
+              ctx.arc(point.x, point.y, size, 0, 2 * Math.PI);
+              ctx.fillStyle = getWindColor(wind.speed, cyclone.category);
+              ctx.fill();
+
+              const vectorScale = 5;
+              ctx.beginPath();
+              ctx.moveTo(point.x, point.y);
+              ctx.lineTo(point.x + wind.u * vectorScale, point.y - wind.v * vectorScale);
+              ctx.strokeStyle = getWindColor(wind.speed, cyclone.category);
+              ctx.lineWidth = 0.5;
+              ctx.stroke();
+            });
+          }
+        }
+
+        // Draw category label
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.font = 'bold 14px Inter, sans-serif';
+        ctx.fillStyle = 'white';
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 3;
+        ctx.strokeText(cyclone.category, center.x + 15, center.y - 15);
+        ctx.fillText(cyclone.category, center.x + 15, center.y - 15);
+        ctx.globalCompositeOperation = 'lighter';
+      });
+
+      animationRef.current = requestAnimationFrame(animate);
+    };
+
     animationRef.current = requestAnimationFrame(animate);
 
     // Handle map events
     const handleResize = () => resizeCanvas();
-
     map.on('resize', handleResize);
 
     return () => {
@@ -298,12 +288,7 @@ export function CycloneWindField({
       canvas.remove();
       map.off('resize', handleResize);
     };
-  }, [map, isActive, animate, updateWindFields]);
-
-  // Update when cyclones change
-  useEffect(() => {
-    updateWindFields();
-  }, [cyclones, updateWindFields]);
+  }, [map, isActive, showWindField, showEyeWall]); // Stable dependencies only
 
   return null;
 }
