@@ -542,6 +542,7 @@ export function UnifiedHazardMap() {
 
       {/* Automatic Detection Popups */}
       <DetectionPopup
+        map={mapInstance}
         detections={detections}
         onDismiss={(id) => setDetections(prev => prev.filter(d => d.id !== id))}
         onView={(detection) => {

@@ -1,13 +1,10 @@
 /**
- * Automatic Detection Popup
- * Shows when new hazards are detected
+ * Detection Markers - Mapbox Native Layers
+ * Renders detections directly as map layers, not floating overlays
  */
 
-import { useEffect, useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Wind, Waves, Mountain, X, AlertTriangle, Bell } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useEffect, useRef, useCallback } from 'react';
+import mapboxgl from 'mapbox-gl';
 
 interface Detection {
   id: string;
@@ -17,141 +14,198 @@ interface Detection {
   severity: 'low' | 'medium' | 'high' | 'critical';
   timestamp: Date;
   location?: string;
+  coordinates?: { lat: number; lon: number };
 }
 
 interface DetectionPopupProps {
+  map: mapboxgl.Map | null;
   detections: Detection[];
   onDismiss: (id: string) => void;
   onView: (detection: Detection) => void;
 }
 
-const TYPE_CONFIG = {
-  cyclone: { icon: Wind, color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30' },
-  flood: { icon: Waves, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/30' },
-  landslide: { icon: Mountain, color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/30' },
-  waterlogged: { icon: Waves, color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30' },
+const TYPE_CONFIG: Record<string, { emoji: string; color: string }> = {
+  cyclone: { emoji: '🌀', color: '#ef4444' },
+  flood: { emoji: '🌊', color: '#3b82f6' },
+  landslide: { emoji: '⛰️', color: '#f97316' },
+  waterlogged: { emoji: '💧', color: '#22d3ee' },
 };
 
-const SEVERITY_CONFIG = {
-  critical: { badge: 'bg-red-600', label: 'CRITICAL' },
-  high: { badge: 'bg-orange-500', label: 'HIGH' },
-  medium: { badge: 'bg-yellow-500', label: 'MEDIUM' },
-  low: { badge: 'bg-green-500', label: 'LOW' },
+const SEVERITY_CONFIG: Record<string, { color: string; label: string }> = {
+  critical: { color: '#dc2626', label: 'CRITICAL' },
+  high: { color: '#f97316', label: 'HIGH' },
+  medium: { color: '#eab308', label: 'MEDIUM' },
+  low: { color: '#22c55e', label: 'LOW' },
 };
 
-export function DetectionPopup({ detections, onDismiss, onView }: DetectionPopupProps) {
-  const [visible, setVisible] = useState<Detection[]>([]);
+const SOURCE_ID = 'detection-markers-source';
+const PULSE_LAYER_ID = 'detection-pulse-layer';
+const CORE_LAYER_ID = 'detection-core-layer';
+const LABEL_LAYER_ID = 'detection-label-layer';
 
-  // Show new detections with animation
+export function DetectionPopup({ map, detections, onDismiss, onView }: DetectionPopupProps) {
+  const popupRef = useRef<mapboxgl.Popup | null>(null);
+  const initializedRef = useRef(false);
+  const animationRef = useRef<number | null>(null);
+
+  const parseLocation = useCallback((location?: string): { lat: number; lon: number } | null => {
+    if (!location) return null;
+    const match = location.match(/([-\d.]+)°[SN],?\s*([-\d.]+)°[EW]/);
+    if (!match) return null;
+    const lat = parseFloat(match[1]) * (location.includes('S') ? -1 : 1);
+    const lon = parseFloat(match[2]) * (location.includes('W') ? -1 : 1);
+    return { lat, lon };
+  }, []);
+
+  const getGeoJSON = useCallback((): GeoJSON.FeatureCollection => ({
+    type: 'FeatureCollection',
+    features: detections
+      .map(d => {
+        const coords = d.coordinates || parseLocation(d.location);
+        if (!coords) return null;
+        const typeConfig = TYPE_CONFIG[d.type] || { emoji: '⚠️', color: '#888888' };
+        const sevConfig = SEVERITY_CONFIG[d.severity] || { color: '#888888', label: 'UNKNOWN' };
+        return {
+          type: 'Feature' as const,
+          geometry: { type: 'Point' as const, coordinates: [coords.lon, coords.lat] },
+          properties: {
+            id: d.id,
+            type: d.type,
+            title: d.title,
+            message: d.message,
+            severity: d.severity,
+            color: typeConfig.color,
+            severityColor: sevConfig.color,
+            emoji: typeConfig.emoji,
+            severityLabel: sevConfig.label
+          }
+        };
+      })
+      .filter(Boolean) as GeoJSON.Feature[]
+  }), [detections, parseLocation]);
+
   useEffect(() => {
-    if (detections.length > 0) {
-      const latest = detections[detections.length - 1];
-      setVisible(prev => {
-        // Avoid duplicates
-        if (prev.find(d => d.id === latest.id)) return prev;
-        return [...prev.slice(-2), latest]; // Keep max 3 visible
+    if (!map) return;
+
+    const initLayers = () => {
+      if (initializedRef.current) return;
+      if (map.getSource(SOURCE_ID)) return;
+
+      map.addSource(SOURCE_ID, { type: 'geojson', data: getGeoJSON() });
+
+      map.addLayer({
+        id: PULSE_LAYER_ID,
+        type: 'circle',
+        source: SOURCE_ID,
+        paint: {
+          'circle-radius': 25,
+          'circle-color': 'transparent',
+          'circle-stroke-width': 3,
+          'circle-stroke-color': ['get', 'severityColor'],
+          'circle-stroke-opacity': 0.6
+        }
       });
 
-      // Auto-dismiss after 10 seconds
-      const timer = setTimeout(() => {
-        onDismiss(latest.id);
-        setVisible(prev => prev.filter(d => d.id !== latest.id));
-      }, 10000);
+      map.addLayer({
+        id: CORE_LAYER_ID,
+        type: 'circle',
+        source: SOURCE_ID,
+        paint: {
+          'circle-radius': 10,
+          'circle-color': ['get', 'color'],
+          'circle-stroke-width': 3,
+          'circle-stroke-color': ['get', 'severityColor'],
+          'circle-stroke-opacity': 1
+        }
+      });
 
-      return () => clearTimeout(timer);
+      map.addLayer({
+        id: LABEL_LAYER_ID,
+        type: 'symbol',
+        source: SOURCE_ID,
+        layout: {
+          'text-field': ['concat', ['get', 'emoji'], ' ', ['get', 'severityLabel']],
+          'text-font': ['DIN Pro Bold', 'Arial Unicode MS Bold'],
+          'text-size': 10,
+          'text-offset': [0, 2.2],
+          'text-anchor': 'top'
+        },
+        paint: {
+          'text-color': ['get', 'severityColor'],
+          'text-halo-color': 'rgba(0,0,0,0.9)',
+          'text-halo-width': 1.5
+        }
+      });
+
+      map.on('click', CORE_LAYER_ID, (e) => {
+        if (!e.features?.[0]) return;
+        const props = e.features[0].properties as Record<string, unknown>;
+        const coords = (e.features[0].geometry as GeoJSON.Point).coordinates;
+
+        popupRef.current?.remove();
+
+        const html = `
+          <div style="background:#0f0f0f;padding:12px;border-radius:8px;border:1px solid ${props.severityColor}40;min-width:180px;font-family:system-ui;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+              <span style="font-size:20px;">${props.emoji}</span>
+              <div>
+                <div style="color:white;font-weight:600;font-size:13px;">${props.title}</div>
+                <span style="background:${props.severityColor};color:white;font-size:9px;padding:2px 6px;border-radius:4px;font-weight:600;">${props.severityLabel}</span>
+              </div>
+            </div>
+            <div style="color:rgba(255,255,255,0.7);font-size:11px;line-height:1.4;">${props.message}</div>
+          </div>
+        `;
+
+        popupRef.current = new mapboxgl.Popup({ closeButton: true, closeOnClick: true, className: 'detection-popup', maxWidth: '280px' })
+          .setLngLat(coords as [number, number])
+          .setHTML(html)
+          .addTo(map);
+      });
+
+      map.on('mouseenter', CORE_LAYER_ID, () => { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', CORE_LAYER_ID, () => { map.getCanvas().style.cursor = ''; });
+
+      initializedRef.current = true;
+
+      let step = 0;
+      const animate = () => {
+        step = (step + 1) % 60;
+        const scale = 1 + Math.sin(step * Math.PI / 30) * 0.4;
+        const opacity = 0.8 - Math.sin(step * Math.PI / 30) * 0.4;
+        if (map.getLayer(PULSE_LAYER_ID)) {
+          map.setPaintProperty(PULSE_LAYER_ID, 'circle-radius', 20 + scale * 10);
+          map.setPaintProperty(PULSE_LAYER_ID, 'circle-stroke-opacity', opacity);
+        }
+        animationRef.current = requestAnimationFrame(animate);
+      };
+      animate();
+    };
+
+    if (map.isStyleLoaded()) {
+      initLayers();
+    } else {
+      map.once('load', initLayers);
     }
-  }, [detections, onDismiss]);
 
-  if (visible.length === 0) return null;
+    return () => {
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      popupRef.current?.remove();
+    };
+  }, [map, getGeoJSON]);
+
+  useEffect(() => {
+    if (!map || !initializedRef.current) return;
+    const source = map.getSource(SOURCE_ID) as mapboxgl.GeoJSONSource;
+    if (source) source.setData(getGeoJSON());
+  }, [map, detections, getGeoJSON]);
 
   return (
-    <div className="absolute top-20 right-4 z-[1000] space-y-2">
-      {visible.map((detection, index) => {
-        const config = TYPE_CONFIG[detection.type];
-        const Icon = config.icon;
-        const severity = SEVERITY_CONFIG[detection.severity];
-
-        return (
-          <Card
-            key={detection.id}
-            className={cn(
-              'w-80 p-3 backdrop-blur-xl border animate-in slide-in-from-right fade-in',
-              config.bg,
-              config.border,
-              index === visible.length - 1 ? 'duration-300' : 'duration-500'
-            )}
-            style={{
-              animationDelay: `${index * 100}ms`,
-            }}
-          >
-            {/* Header */}
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className={cn('w-8 h-8 rounded-full flex items-center justify-center', config.bg)}>
-                  <Icon className={cn('w-4 h-4', config.color)} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-white">{detection.title}</h4>
-                  <span className={cn('text-[10px] px-1.5 py-0.5 rounded text-white font-medium', severity.badge)}>
-                    {severity.label}
-                  </span>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 text-white/60 hover:text-white hover:bg-white/10"
-                onClick={() => {
-                  onDismiss(detection.id);
-                  setVisible(prev => prev.filter(d => d.id !== detection.id));
-                }}
-              >
-                <X className="w-3.5 h-3.5" />
-              </Button>
-            </div>
-
-            {/* Message */}
-            <p className="text-xs text-white/80 mb-2">{detection.message}</p>
-
-            {/* Location & Time */}
-            {detection.location && (
-              <p className="text-[10px] text-white/50 mb-2">
-                📍 {detection.location}
-              </p>
-            )}
-
-            {/* Actions */}
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                className="flex-1 h-7 text-xs bg-white/10 hover:bg-white/20 text-white"
-                onClick={() => onView(detection)}
-              >
-                <Bell className="w-3 h-3 mr-1" />
-                View on Map
-              </Button>
-            </div>
-
-            {/* Progress bar for auto-dismiss */}
-            <div className="mt-2 h-0.5 bg-white/10 rounded-full overflow-hidden">
-              <div
-                className={cn('h-full rounded-full', config.color.replace('text-', 'bg-'))}
-                style={{
-                  animation: 'progress 10s linear forwards',
-                }}
-              />
-            </div>
-          </Card>
-        );
-      })}
-
-      <style>{`
-        @keyframes progress {
-          from { width: 100%; }
-          to { width: 0%; }
-        }
-      `}</style>
-    </div>
+    <style>{`
+      .detection-popup .mapboxgl-popup-content { background: transparent !important; padding: 0 !important; box-shadow: none !important; }
+      .detection-popup .mapboxgl-popup-tip { border-top-color: #0f0f0f !important; }
+      .detection-popup .mapboxgl-popup-close-button { color: white !important; font-size: 18px; right: 4px; top: 4px; }
+    `}</style>
   );
 }
 
