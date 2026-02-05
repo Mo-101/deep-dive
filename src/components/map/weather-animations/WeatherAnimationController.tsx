@@ -5,6 +5,7 @@
  */
 
 import { useState, useMemo } from 'react';
+import { useMap } from '@/hooks/useMap';
 import { WindParticleLayer } from './WindParticleLayer';
 import { CycloneWindField } from './CycloneWindField';
 import { FloodAnimationLayer } from './FloodAnimationLayer';
@@ -114,6 +115,7 @@ export function WeatherAnimationController({
   floodZones = [],
   className = '',
 }: WeatherAnimationControllerProps) {
+  const { map } = useMap();
   const [isPlaying, setIsPlaying] = useState(true);
   const [activeLayers, setActiveLayers] = useState({
     windParticles: false,
@@ -188,6 +190,7 @@ export function WeatherAnimationController({
       
       {activeLayers.cycloneWindField && cycloneData.length > 0 && (
         <CycloneWindField
+          map={map}
           cyclones={cycloneData}
           showWindField={true}
           showEyeWall={true}
@@ -197,6 +200,7 @@ export function WeatherAnimationController({
       
       {activeLayers.floodAnimation && generatedFloodZones.length > 0 && (
         <FloodAnimationLayer
+          map={map}
           floodZones={generatedFloodZones}
           showFlowLines={true}
           showPulseEffect={true}

@@ -172,21 +172,21 @@ export function UnifiedHazardMap() {
       type: 'cyclone' as const,
       message: `${c.name}: ${c.category}, ${c.maxWind}kt winds`,
       timestamp: new Date(c.updated),
-      severity: c.category.startsWith('CAT') ? 'high' : 'medium',
+      severity: (c.category.startsWith('CAT') ? 'high' : 'medium') as 'critical' | 'high' | 'medium' | 'low',
     })),
     ...(hazards.floods || []).map(f => ({
       id: f.id,
       type: 'flood' as const,
       message: `Flooded area detected: ${f.area_km2.toFixed(1)} km²`,
       timestamp: new Date(f.detected_date),
-      severity: f.area_km2 > 100 ? 'high' : 'medium',
+      severity: (f.area_km2 > 100 ? 'high' : 'medium') as 'critical' | 'high' | 'medium' | 'low',
     })),
     ...(hazards.landslides || []).map(l => ({
       id: l.id,
       type: 'landslide' as const,
       message: `${l.risk_level.toUpperCase()} landslide risk: ${l.rainfall_mm}mm rainfall`,
       timestamp: new Date(),
-      severity: l.risk_level as any,
+      severity: (l.risk_level === 'high' ? 'high' : l.risk_level === 'medium' ? 'medium' : 'low') as 'critical' | 'high' | 'medium' | 'low',
     })),
   ] : [];
 
