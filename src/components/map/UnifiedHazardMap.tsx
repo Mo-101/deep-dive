@@ -15,8 +15,6 @@ import { DetectionPopup } from './DetectionPopup';
 import { NewsTicker } from './NewsTicker';
 import { OpenWeatherLayer } from './OpenWeatherLayer';
 import { WindParticleLayer } from './WindParticleLayer';
-import { CycloneWindField } from './weather-animations/CycloneWindField';
-import { FloodAnimationLayer } from './weather-animations/FloodAnimationLayer';
 import { HazardBubbleMarkers } from './HazardBubbleMarkers';
 
 // Historical events (Idai, Freddy)
@@ -226,9 +224,15 @@ export function UnifiedHazardMap() {
     setDetections(newDetections);
   }, [hazards]);
 
-  // Initialize map
+  // Initialize map - with proper cleanup to prevent WebGL context exhaustion
   useEffect(() => {
     if (!mapContainer.current) return;
+
+    // Prevent multiple map instances
+    if (mapRef.current) {
+      console.log('[UnifiedHazardMap] Map already exists, skipping initialization');
+      return;
+    }
 
     const token = import.meta.env.VITE_MAPBOX_TOKEN;
     if (!token) {
@@ -237,27 +241,40 @@ export function UnifiedHazardMap() {
     }
     mapboxgl.accessToken = token;
 
-    const map = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/akanimo1/cml72h8dv002z01qx4a518c8q',
-      center: [35, -19],
-      zoom: 4,
-      minZoom: 3,
-      maxZoom: 12,
-      projection: 'mercator',
-    });
+    try {
+      const map = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/akanimo1/cml72h8dv002z01qx4a518c8q',
+        center: [35, -19],
+        zoom: 4,
+        minZoom: 3,
+        maxZoom: 12,
+        projection: 'mercator',
+        failIfMajorPerformanceCaveat: false, // Allow software rendering fallback
+        preserveDrawingBuffer: true, // Helps with WebGL context stability
+      });
 
-    mapRef.current = map;
-    setMapInstance(map);
+      mapRef.current = map;
+      setMapInstance(map);
 
-    map.on('load', () => {
-      console.log('[UnifiedHazardMap] Map loaded');
-      initializeLayers(map);
-    });
+      map.on('load', () => {
+        console.log('[UnifiedHazardMap] Map loaded');
+        initializeLayers(map);
+      });
+
+      map.on('error', (e) => {
+        console.error('[UnifiedHazardMap] Map error:', e.error);
+      });
+    } catch (error) {
+      console.error('[UnifiedHazardMap] Failed to create map:', error);
+    }
 
     return () => {
-      map.remove();
-      setMapInstance(null);
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        setMapInstance(null);
+      }
     };
   }, []);
 
@@ -500,45 +517,6 @@ export function UnifiedHazardMap() {
         map={mapInstance}
         visible={activeLayers.wind}
       />
-
-      {/* Cyclone Wind Field Animation */}
-      {activeLayers.cyclones && hazards?.cyclones && (
-        <CycloneWindField
-          map={mapInstance}
-          cyclones={hazards.cyclones.map(c => ({
-            id: c.id,
-            center: c.center,
-            maxWindSpeed: c.maxWind,
-            radius: 300,
-            pressure: 980,
-            category: c.category as any,
-            movementDirection: 0,
-            movementSpeed: 10,
-          }))}
-          showWindField={true}
-          showEyeWall={true}
-          isActive={true}
-        />
-      )}
-
-      {/* Flood Animation */}
-      {activeLayers.floods && hazards?.floods && (
-        <FloodAnimationLayer
-          map={mapInstance}
-          floodZones={hazards.floods.map(f => ({
-            id: f.id,
-            center: { lat: f.polygon.coordinates[0][0][1], lon: f.polygon.coordinates[0][0][0] },
-            extent: f.polygon.coordinates[0].map((c: number[]) => ({ lat: c[1], lon: c[0] })),
-            severity: f.area_km2 > 50 ? 'major' : f.area_km2 > 10 ? 'moderate' : 'minor',
-            depth: 1.5,
-            velocity: 0.5,
-            isExpanding: false,
-          }))}
-          showFlowLines={true}
-          showPulseEffect={true}
-          isActive={true}
-        />
-      )}
 
       {/* Automatic Detection Popups */}
       <DetectionPopup

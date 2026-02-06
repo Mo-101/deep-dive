@@ -39,14 +39,17 @@ const WIND_PARTICLE_COLOR = [
 
 export function WindParticleLayer({ map, visible = true }: WindParticleLayerProps) {
     const layerAddedRef = useRef(false);
+    const initAttemptedRef = useRef(false);
 
     useEffect(() => {
-        if (!map) return;
+        if (!map || initAttemptedRef.current) return;
+        initAttemptedRef.current = true;
 
         const addWindLayer = () => {
             // Check if already added
-            if (map.getSource('gfs-wind-source')) {
+            if (map.getSource('gfs-wind-source') || layerAddedRef.current) {
                 layerAddedRef.current = true;
+                console.log('[WindParticleLayer] Wind source already exists');
                 return;
             }
 
@@ -77,7 +80,7 @@ export function WindParticleLayer({ map, visible = true }: WindParticleLayerProp
                 layerAddedRef.current = true;
                 console.log('[WindParticleLayer] Native Mapbox wind layer added');
             } catch (error) {
-                console.error('[WindParticleLayer] Error adding wind layer:', error);
+                console.warn('[WindParticleLayer] Error adding wind layer (may require GL JS v3):', error);
             }
         };
 
@@ -89,12 +92,17 @@ export function WindParticleLayer({ map, visible = true }: WindParticleLayerProp
         }
 
         return () => {
-            // Cleanup on unmount
-            if (layerAddedRef.current && map.getLayer('wind-particle-layer')) {
+            // Cleanup on unmount - only if we added the layer
+            if (layerAddedRef.current) {
                 try {
-                    map.removeLayer('wind-particle-layer');
-                    map.removeSource('gfs-wind-source');
+                    if (map.getLayer('wind-particle-layer')) {
+                        map.removeLayer('wind-particle-layer');
+                    }
+                    if (map.getSource('gfs-wind-source')) {
+                        map.removeSource('gfs-wind-source');
+                    }
                     layerAddedRef.current = false;
+                    initAttemptedRef.current = false;
                 } catch (e) {
                     // Ignore cleanup errors
                 }
